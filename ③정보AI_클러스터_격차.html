@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>정보·AI 교과 격차 분석</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#07090f;color:#b8cce8;padding:22px;min-height:100vh;}
+h1{font-size:15px;font-weight:700;color:#e0edff;margin-bottom:3px;}
+.sub{font-size:11px;color:#354560;margin-bottom:20px;}
+
+/* layout */
+#top{display:flex;gap:16px;margin-bottom:20px;}
+#district-bars{flex:1;}
+#ai-scatter{flex:1;position:relative;}
+#bottom{display:flex;gap:16px;}
+#school-rank{flex:1;}
+#income-ai{flex:1;position:relative;}
+
+.section-title{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#243448;font-weight:700;margin-bottom:10px;}
+.panel{background:#0b0f1c;border:1px solid #131f33;border-radius:10px;padding:14px;}
+
+/* district bar */
+.dist-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.dist-name{width:62px;font-size:10px;color:#7a8fa8;text-align:right;flex-shrink:0;}
+.dist-name.top{color:#a78bfa;}
+.dist-bar-wrap{flex:1;height:22px;background:rgba(255,255,255,0.03);border-radius:3px;overflow:hidden;position:relative;}
+.dist-bar{height:100%;border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;}
+.dist-bar-val{font-size:9.5px;font-weight:700;color:rgba(255,255,255,0.6);}
+.dist-bar-val.ext{position:absolute;left:calc(100% + 4px);top:50%;transform:translateY(-50%);color:#6b7e99;}
+.school-cnt{font-size:9px;color:#354560;margin-left:4px;width:28px;}
+
+/* scatter */
+svg{width:100%;display:block;}
+.tooltip{position:fixed;pointer-events:none;background:#070c18;border:1px solid #162135;border-radius:8px;padding:9px 12px;font-size:10.5px;z-index:9999;display:none;min-width:170px;box-shadow:0 6px 24px rgba(0,0,0,.6);}
+.tt-name{font-size:12px;font-weight:700;color:#e0edff;margin-bottom:4px;border-bottom:1px solid #162135;padding-bottom:4px;}
+.tt-row{display:flex;justify-content:space-between;gap:10px;margin-top:2px;}
+.tt-k{color:#354560;font-size:10px;}
+.tt-v{font-weight:600;color:#a78bfa;font-size:10px;}
+.tt-v2{color:#60a5fa;}
+
+/* school rank */
+.rank-row{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+.rank-num{width:18px;font-size:9px;color:#243448;text-align:center;flex-shrink:0;}
+.rank-name{font-size:10px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rank-name.island{color:#f87171;}
+.rank-bar-bg{width:80px;height:10px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden;flex-shrink:0;}
+.rank-bar-fill{height:100%;border-radius:2px;}
+.rank-val{font-size:9.5px;font-weight:700;width:20px;text-align:right;flex-shrink:0;}
+
+/* zero AI highlight */
+.zero-card{background:#110a0a;border:1px solid #3a1010;border-radius:6px;padding:8px 10px;margin-top:8px;}
+.zero-title{font-size:9px;color:#7f1d1d;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px;}
+.zero-item{font-size:10px;color:#f87171;margin-bottom:3px;}
+.zero-school{font-weight:600;}
+.zero-dist{font-size:9px;color:#7f3030;margin-left:4px;}
+
+.note{font-size:9.5px;color:#1a2535;line-height:1.65;margin-top:14px;}
+
+/* stat pill */
+.stat-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.pill{background:#0d1525;border:1px solid #1a2e4a;border-radius:20px;padding:4px 11px;font-size:10px;}
+.pill span{font-weight:700;color:#a78bfa;}
+</style>
+</head>
+<body>
+<h1>🤖 정보·AI 교과 격차 분석 — 디지털 교육 기회의 불균형</h1>
+<div class="sub">클러스터 "정보·AI" 과목 수(인공지능 기초·수학, 데이터과학, 프로그래밍, SW 등) 기준 | 전체 81개교</div>
+
+<div class="stat-pills" id="stat-pills"></div>
+
+<div id="top">
+  <div class="panel" id="district-bars-wrap">
+    <div class="section-title">▸ 구별 정보·AI 과목 평균 수</div>
+    <div id="district-bars"></div>
+  </div>
+  <div class="panel" style="position:relative;">
+    <div class="section-title">▸ 구별 월평균 소득 × AI 과목 평균 수</div>
+    <svg id="scatter-svg" viewBox="0 0 320 200"></svg>
+    <div class="tooltip" id="tip2"></div>
+  </div>
+</div>
+
+<div id="bottom">
+  <div class="panel">
+    <div class="section-title">▸ 학교별 정보·AI 과목 수 랭킹 (상위 15개 + 하위 포함)</div>
+    <div id="school-rank"></div>
+    <div class="zero-card">
+      <div class="zero-title">⚠ 정보·AI 과목 0~1개 학교</div>
+      <div id="zero-schools"></div>
+    </div>
+  </div>
+  <div class="panel" style="position:relative;">
+    <div class="section-title">▸ 설립유형별 AI 과목 분포 (공립 vs 사립)</div>
+    <svg id="box-svg" viewBox="0 0 320 200"></svg>
+    <div class="section-title" style="margin-top:16px;">▸ AI 과목 수 구간별 학교 수</div>
+    <div id="hist"></div>
+  </div>
+</div>
+
+<div class="note">
+  * 정보·AI 클러스터: 인공지능 기초, 인공지능 수학, 데이터과학, 소프트웨어와 생활, 프로그래밍, 정보과학, 로봇과 공학세계 등 포함<br>
+  * 산점도의 회귀선 R²는 구별 집계 기준 (n=10)
+</div>
+
+<script>
+const INCOME={강화군:370.9,옹진군:293.0,중구:360.8,동구:398.0,미추홀구:384.5,연수구:478.5,남동구:407.1,부평구:412.4,계양구:467.2,서구:458.4};
+const ISLAND=new Set(['강화군','옹진군']);
+const DC={강화군:'#f59e0b',옹진군:'#ef4444',중구:'#a78bfa',동구:'#38bdf8',미추홀구:'#34d399',연수구:'#3b82f6',남동구:'#06b6d4',부평구:'#f472b6',계양구:'#86efac',서구:'#fde047'};
+
+const SCHOOLS=[
+  {n:"가림고",d:"서구",t:"공립",s:102,ai:3},{n:"가정고",d:"서구",t:"공립",s:104,ai:2},
+  {n:"강화고",d:"강화군",t:"공립",s:90,ai:2},{n:"강화여고",d:"강화군",t:"공립",s:97,ai:2},
+  {n:"계산고",d:"계양구",t:"공립",s:101,ai:10},{n:"계산여고",d:"계양구",t:"공립",s:101,ai:8},
+  {n:"계양고",d:"계양구",t:"공립",s:94,ai:2},{n:"교동고",d:"강화군",t:"공립",s:82,ai:4},
+  {n:"대인고",d:"서구",t:"사립",s:95,ai:4},{n:"대청고",d:"옹진군",t:"공립",s:66,ai:2},
+  {n:"덕신고",d:"강화군",t:"공립",s:78,ai:0},{n:"덕적고",d:"옹진군",t:"공립",s:84,ai:3},
+  {n:"동산고",d:"동구",t:"사립",s:86,ai:4},{n:"명신여고",d:"부평구",t:"사립",s:115,ai:6},
+  {n:"문일여고",d:"남동구",t:"사립",s:94,ai:4},{n:"박문여고",d:"연수구",t:"사립",s:83,ai:2},
+  {n:"백령고",d:"옹진군",t:"공립",s:74,ai:4},{n:"백석고",d:"서구",t:"공립",s:104,ai:3},
+  {n:"부개고",d:"부평구",t:"공립",s:100,ai:4},{n:"부개여고",d:"부평구",t:"공립",s:94,ai:3},
+  {n:"부광고",d:"부평구",t:"공립",s:105,ai:3},{n:"부광여고",d:"부평구",t:"공립",s:103,ai:8},
+  {n:"부평고",d:"부평구",t:"공립",s:94,ai:6},{n:"부평여고",d:"부평구",t:"공립",s:96,ai:4},
+  {n:"삼산고",d:"부평구",t:"공립",s:110,ai:12},{n:"서도고",d:"강화군",t:"공립",s:77,ai:2},
+  {n:"서운고",d:"계양구",t:"공립",s:106,ai:6},{n:"서인천고",d:"서구",t:"사립",s:107,ai:8},
+  {n:"석정여고",d:"남동구",t:"공립",s:95,ai:1},{n:"선인고",d:"미추홀구",t:"공립",s:110,ai:9},
+  {n:"세일고",d:"부평구",t:"사립",s:83,ai:1},{n:"송도고",d:"연수구",t:"사립",s:111,ai:6},
+  {n:"숭덕여고",d:"남동구",t:"사립",s:100,ai:2},{n:"신명여고",d:"남동구",t:"사립",s:113,ai:4},
+  {n:"신송고",d:"연수구",t:"공립",s:95,ai:6},{n:"안남고",d:"계양구",t:"공립",s:93,ai:6},
+  {n:"연수여고",d:"연수구",t:"공립",s:101,ai:4},{n:"연평고",d:"옹진군",t:"공립",s:96,ai:3},
+  {n:"옥련여고",d:"연수구",t:"공립",s:102,ai:4},{n:"인명여고",d:"미추홀구",t:"사립",s:108,ai:6},
+  {n:"인성여고",d:"중구",t:"사립",s:123,ai:7},{n:"인일여고",d:"중구",t:"공립",s:112,ai:7},
+  {n:"인제고",d:"남동구",t:"사립",s:96,ai:6},{n:"인천고",d:"미추홀구",t:"공립",s:93,ai:3},
+  {n:"인천고잔고",d:"남동구",t:"공립",s:103,ai:7},{n:"인천남고",d:"남동구",t:"공립",s:99,ai:3},
+  {n:"인천남동고",d:"남동구",t:"공립",s:95,ai:4},{n:"인천논현고",d:"남동구",t:"공립",s:94,ai:4},
+  {n:"인천대건고",d:"연수구",t:"사립",s:112,ai:9},{n:"인천마전고",d:"서구",t:"공립",s:95,ai:5},
+  {n:"인천만수고",d:"남동구",t:"공립",s:93,ai:3},{n:"인천부흥고",d:"부평구",t:"공립",s:96,ai:6},
+  {n:"인천산곡고",d:"부평구",t:"공립",s:106,ai:2},{n:"인천상정고",d:"부평구",t:"공립",s:94,ai:5},
+  {n:"인천세원고",d:"계양구",t:"공립",s:96,ai:5},{n:"인천송천고",d:"남동구",t:"공립",s:91,ai:5},
+  {n:"인천신현고",d:"서구",t:"공립",s:93,ai:1},{n:"인천여고",d:"연수구",t:"공립",s:104,ai:6},
+  {n:"인천연송고",d:"연수구",t:"공립",s:95,ai:6},{n:"인천영선고",d:"부평구",t:"공립",s:104,ai:8},
+  {n:"인천영종고",d:"중구",t:"공립",s:92,ai:8},{n:"인천영흥고",d:"옹진군",t:"공립",s:70,ai:4},
+  {n:"인천예일고",d:"계양구",t:"공립",s:113,ai:6},{n:"인천운남고",d:"중구",t:"공립",s:92,ai:5},
+  {n:"인천원당고",d:"서구",t:"공립",s:113,ai:4},{n:"인천이음고",d:"서구",t:"공립",s:110,ai:10},
+  {n:"인천중산고",d:"중구",t:"공립",s:96,ai:0},{n:"인천청라고",d:"서구",t:"공립",s:108,ai:9},
+  {n:"인천초은고",d:"서구",t:"공립",s:104,ai:7},{n:"인천해송고",d:"연수구",t:"공립",s:98,ai:4},
+  {n:"인천해원고",d:"서구",t:"공립",s:94,ai:3},{n:"인천효성고",d:"계양구",t:"공립",s:109,ai:2},
+  {n:"인하대부속고",d:"미추홀구",t:"사립",s:93,ai:7},{n:"인항고",d:"미추홀구",t:"사립",s:89,ai:6},
+  {n:"인화여고",d:"미추홀구",t:"공립",s:99,ai:6},{n:"작전고",d:"계양구",t:"공립",s:91,ai:0},
+  {n:"작전여고",d:"계양구",t:"공립",s:95,ai:5},{n:"제물포고",d:"중구",t:"공립",s:105,ai:8},
+  {n:"제일고",d:"부평구",t:"사립",s:107,ai:6},{n:"학익고",d:"미추홀구",t:"공립",s:97,ai:8},
+  {n:"학익여고",d:"미추홀구",t:"공립",s:104,ai:6}
+];
+
+// district aggregates
+const dg={};
+SCHOOLS.forEach(s=>{
+  if(!dg[s.d]) dg[s.d]={ai:[],subj:[],cnt:0};
+  dg[s.d].ai.push(s.ai);dg[s.d].subj.push(s.s);dg[s.d].cnt++;
+});
+const avg=arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+const distData=Object.entries(dg).map(([d,v])=>({
+  d,avgAI:avg(v.ai),avgSubj:avg(v.subj),cnt:v.cnt,income:INCOME[d],col:DC[d],island:ISLAND.has(d)
+})).sort((a,b)=>b.avgAI-a.avgAI);
+
+// --- stat pills ---
+const totalAvgAI=avg(SCHOOLS.map(s=>s.ai));
+const maxAI=Math.max(...SCHOOLS.map(s=>s.ai));
+const zeroOne=SCHOOLS.filter(s=>s.ai<=1).length;
+const topDistrict=distData[0];
+const botDistrict=distData[distData.length-1];
+document.getElementById('stat-pills').innerHTML=`
+  <div class="pill">전체 평균 <span>${totalAvgAI.toFixed(1)}</span>개</div>
+  <div class="pill">최고 (삼산고) <span>${maxAI}</span>개</div>
+  <div class="pill">0~1개 학교 <span>${zeroOne}</span>교</div>
+  <div class="pill">1위 구 ${topDistrict.d} <span>${topDistrict.avgAI.toFixed(1)}</span>개</div>
+  <div class="pill">최저 구 ${botDistrict.d} <span>${botDistrict.avgAI.toFixed(1)}</span>개</div>
+  <div class="pill">구간 격차 <span>${(topDistrict.avgAI-botDistrict.avgAI).toFixed(1)}</span>개</div>
+`;
+
+// --- district bars ---
+const maxDistAI=Math.max(...distData.map(d=>d.avgAI));
+const dbEl=document.getElementById('district-bars');
+dbEl.innerHTML=distData.map(dd=>{
+  const w=(dd.avgAI/maxDistAI*100).toFixed(1);
+  const col=dd.col;
+  const isTop=dd.avgAI===distData[0].avgAI;
+  return `<div class="dist-row">
+    <span class="dist-name${isTop?' top':''}">${dd.d}</span>
+    <div class="dist-bar-wrap">
+      <div class="dist-bar" style="width:${w}%;background:linear-gradient(90deg,${col}33,${col}99);">
+        ${dd.avgAI>1.5?`<span class="dist-bar-val">${dd.avgAI.toFixed(1)}</span>`:''}
+      </div>
+      ${dd.avgAI<=1.5?`<span class="dist-bar-val ext">${dd.avgAI.toFixed(1)}</span>`:''}
+    </div>
+    <span class="school-cnt">${dd.cnt}교</span>
+  </div>`;
+}).join('');
+
+// --- scatter: income vs AI ---
+const W2=320,H2=200,P2={t:18,b:40,l:38,r:20};
+const IW2=W2-P2.l-P2.r,IH2=H2-P2.t-P2.b;
+const minX2=260,maxX2=500,minY2=0,maxY2=8;
+const xs2=v=>P2.l+(v-minX2)/(maxX2-minX2)*IW2;
+const ys2=v=>P2.t+IH2-(v-minY2)/(maxY2-minY2)*IH2;
+
+// regression on district data
+const pts2=distData.map(d=>[d.income,d.avgAI]);
+const n2=pts2.length,mx2=avg(pts2.map(p=>p[0])),my2=avg(pts2.map(p=>p[1]));
+let num2=0,den2=0;
+pts2.forEach(([x,y])=>{num2+=(x-mx2)*(y-my2);den2+=(x-mx2)**2;});
+const sl2=num2/den2,ic2=my2-sl2*mx2;
+const ss_res2=pts2.reduce((a,[x,y])=>a+(y-(sl2*x+ic2))**2,0);
+const ss_tot2=pts2.reduce((a,[x,y])=>a+(y-my2)**2,0);
+const r2_2=1-ss_res2/ss_tot2;
+
+let scHtml='';
+// grid
+[300,350,400,450].forEach(t=>{
+  scHtml+=`<line x1="${xs2(t)}" y1="${P2.t}" x2="${xs2(t)}" y2="${P2.t+IH2}" stroke="rgba(255,255,255,0.04)"/>`;
+  scHtml+=`<text x="${xs2(t)}" y="${H2-4}" text-anchor="middle" font-size="8" fill="#243448">${t}</text>`;
+});
+[2,4,6,8].forEach(t=>{
+  scHtml+=`<line x1="${P2.l}" y1="${ys2(t)}" x2="${P2.l+IW2}" y2="${ys2(t)}" stroke="rgba(255,255,255,0.04)"/>`;
+  scHtml+=`<text x="${P2.l-4}" y="${ys2(t)+3}" text-anchor="end" font-size="8" fill="#243448">${t}</text>`;
+});
+// regline
+scHtml+=`<line x1="${xs2(minX2)}" y1="${ys2(sl2*minX2+ic2)}" x2="${xs2(maxX2)}" y2="${ys2(sl2*maxX2+ic2)}" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.5"/>`;
+scHtml+=`<text x="${xs2(460)}" y="${ys2(sl2*460+ic2)-7}" text-anchor="middle" font-size="8" fill="#a78bfa" opacity="0.7">R²=${r2_2.toFixed(2)}</text>`;
+// axis
+scHtml+=`<text x="${P2.l+IW2/2}" y="${H2-0}" text-anchor="middle" font-size="8.5" fill="#354560">소득(만원)</text>`;
+scHtml+=`<text x="10" y="${P2.t+IH2/2}" text-anchor="middle" font-size="8.5" fill="#354560" transform="rotate(-90,10,${P2.t+IH2/2})">AI과목 평균</text>`;
+
+distData.forEach(dd=>{
+  scHtml+=`<circle cx="${xs2(dd.income)}" cy="${ys2(dd.avgAI)}" r="${dd.island?5:6}" fill="${dd.col}" fill-opacity="0.75" stroke="#07090f" stroke-width="1" class="sc-dot" data-d="${dd.d}" data-income="${dd.income}" data-ai="${dd.avgAI.toFixed(1)}" data-cnt="${dd.cnt}" data-island="${dd.island?1:0}" style="cursor:pointer"/>`;
+  scHtml+=`<text x="${xs2(dd.income)}" y="${ys2(dd.avgAI)-8}" text-anchor="middle" font-size="7.5" fill="${dd.col}" opacity="0.8">${dd.d.replace('구','').replace('군','')}</text>`;
+});
+document.getElementById('scatter-svg').innerHTML=scHtml;
+
+// scatter tooltip
+const tip2=document.getElementById('tip2');
+document.querySelectorAll('.sc-dot').forEach(el=>{
+  el.addEventListener('mouseenter',e=>{
+    tip2.innerHTML=`<div class="tt-name">${el.dataset.d}</div>
+      <div class="tt-row"><span class="tt-k">월평균 소득</span><span class="tt-v2">${el.dataset.income}만원</span></div>
+      <div class="tt-row"><span class="tt-k">AI 과목 평균</span><span class="tt-v">${el.dataset.ai}개</span></div>
+      <div class="tt-row"><span class="tt-k">소속 학교 수</span><span class="tt-v2">${el.dataset.cnt}개교</span></div>`;
+    tip2.style.display='block';
+  });
+  el.addEventListener('mousemove',e=>{
+    let lx=e.clientX+12,ly=e.clientY+12;
+    if(lx+185>window.innerWidth) lx=e.clientX-197;
+    tip2.style.left=lx+'px';tip2.style.top=ly+'px';
+  });
+  el.addEventListener('mouseleave',()=>{tip2.style.display='none';});
+});
+
+// --- school rank ---
+const sorted=[...SCHOOLS].sort((a,b)=>b.ai-a.ai);
+const maxAI2=12;
+const rankEl=document.getElementById('school-rank');
+rankEl.innerHTML=`<div style="display:flex;gap:12px;">
+  <div style="flex:1;">
+    <div style="font-size:9px;color:#354560;margin-bottom:6px;">상위 15개교</div>
+    ${sorted.slice(0,15).map((s,i)=>`<div class="rank-row">
+      <span class="rank-num">${i+1}</span>
+      <span class="rank-name${ISLAND.has(s.d)?' island':''}">${s.n}</span>
+      <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${(s.ai/maxAI2*100).toFixed(0)}%;background:${s.ai>=8?'linear-gradient(90deg,#6d28d9,#a78bfa)':s.ai>=5?'linear-gradient(90deg,#1d4ed8,#60a5fa)':'linear-gradient(90deg,#1e3a5f,#3b82f6)'}"></div></div>
+      <span class="rank-val" style="color:${s.ai>=8?'#a78bfa':s.ai>=5?'#60a5fa':'#3b82f6'}">${s.ai}</span>
+    </div>`).join('')}
+  </div>
+  <div style="width:1px;background:#131f33;flex-shrink:0;"></div>
+  <div style="flex:1;">
+    <div style="font-size:9px;color:#354560;margin-bottom:6px;">하위 15개교</div>
+    ${sorted.slice(-15).reverse().map((s,i)=>`<div class="rank-row">
+      <span class="rank-num" style="color:#3a1010">${sorted.length-i}</span>
+      <span class="rank-name${ISLAND.has(s.d)?' island':''}">${s.n}</span>
+      <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${Math.max((s.ai/maxAI2*100).toFixed(0),4)}%;background:linear-gradient(90deg,#1f0a0a,#7f1d1d)"></div></div>
+      <span class="rank-val" style="color:#f87171">${s.ai}</span>
+    </div>`).join('')}
+  </div>
+</div>`;
+
+// zero schools
+const zeroEl=document.getElementById('zero-schools');
+const zeroSchools=SCHOOLS.filter(s=>s.ai<=1).sort((a,b)=>a.ai-b.ai);
+zeroEl.innerHTML=zeroSchools.map(s=>`<div class="zero-item"><span class="zero-school">${s.n}</span><span class="zero-dist">${s.d} | ${s.ai}개</span></div>`).join('');
+
+// --- box plot: pub vs pri ---
+const pubAI=SCHOOLS.filter(s=>s.t==='공립').map(s=>s.ai).sort((a,b)=>a-b);
+const priAI=SCHOOLS.filter(s=>s.t==='사립').map(s=>s.ai).sort((a,b)=>a-b);
+function boxStats(arr){
+  const q1=arr[Math.floor(arr.length*.25)],q3=arr[Math.floor(arr.length*.75)];
+  return{min:arr[0],q1,med:arr[Math.floor(arr.length/2)],q3,max:arr[arr.length-1],avg:avg(arr)};
+}
+const pubB=boxStats(pubAI),priB=boxStats(priAI);
+const W3=320,H3=200,P3={t:20,b:30,l:60,r:20};
+const IW3=W3-P3.l-P3.r,IH3=H3-P3.t-P3.b;
+const ys3=v=>P3.t+IH3-(v/14)*IH3;
+let bHtml='';
+// grid
+[0,2,4,6,8,10,12].forEach(t=>{
+  bHtml+=`<line x1="${P3.l}" y1="${ys3(t)}" x2="${P3.l+IW3}" y2="${ys3(t)}" stroke="rgba(255,255,255,0.04)"/>`;
+  bHtml+=`<text x="${P3.l-5}" y="${ys3(t)+3}" text-anchor="end" font-size="8" fill="#243448">${t}</text>`;
+});
+// axis label
+bHtml+=`<text x="12" y="${P3.t+IH3/2}" text-anchor="middle" font-size="8.5" fill="#354560" transform="rotate(-90,12,${P3.t+IH3/2})">AI 과목 수</text>`;
+
+function drawBox(x,b,col,label){
+  const bw=50;
+  bHtml+=`<rect x="${x-bw/2}" y="${ys3(b.q3)}" width="${bw}" height="${ys3(b.q1)-ys3(b.q3)}" fill="${col}22" stroke="${col}" stroke-width="1.5" rx="3"/>`;
+  bHtml+=`<line x1="${x-bw/2}" y1="${ys3(b.med)}" x2="${x+bw/2}" y2="${ys3(b.med)}" stroke="${col}" stroke-width="2"/>`;
+  bHtml+=`<line x1="${x}" y1="${ys3(b.min)}" x2="${x}" y2="${ys3(b.q1)}" stroke="${col}" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="3,2"/>`;
+  bHtml+=`<line x1="${x}" y1="${ys3(b.q3)}" x2="${x}" y2="${ys3(b.max)}" stroke="${col}" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="3,2"/>`;
+  bHtml+=`<line x1="${x-10}" y1="${ys3(b.min)}" x2="${x+10}" y2="${ys3(b.min)}" stroke="${col}" stroke-opacity="0.5" stroke-width="1"/>`;
+  bHtml+=`<line x1="${x-10}" y1="${ys3(b.max)}" x2="${x+10}" y2="${ys3(b.max)}" stroke="${col}" stroke-opacity="0.5" stroke-width="1"/>`;
+  bHtml+=`<circle cx="${x}" cy="${ys3(b.avg)}" r="3" fill="${col}" opacity="0.8"/>`;
+  bHtml+=`<text x="${x}" y="${ys3(b.med)-5}" text-anchor="middle" font-size="8" fill="${col}" opacity="0.9">중앙값 ${b.med}</text>`;
+  bHtml+=`<text x="${x}" y="${H3-8}" text-anchor="middle" font-size="9.5" fill="${col}" font-weight="700">${label}</text>`;
+  bHtml+=`<text x="${x}" y="${H3-18}" text-anchor="middle" font-size="8" fill="${col}" opacity="0.6">평균 ${b.avg.toFixed(1)}</text>`;
+}
+drawBox(P3.l+IW3*0.3,pubB,'#60a5fa','공립');
+drawBox(P3.l+IW3*0.7,priB,'#a78bfa','사립');
+document.getElementById('box-svg').innerHTML=bHtml;
+
+// --- histogram ---
+const bins=[0,1,2,3,4,5,6,7,8,9,10,11,12];
+const binCounts=bins.map(b=>SCHOOLS.filter(s=>s.ai===b).length);
+const maxBin=Math.max(...binCounts);
+const histEl=document.getElementById('hist');
+histEl.innerHTML=`<div style="display:flex;align-items:flex-end;gap:3px;height:60px;padding:0 2px;">
+  ${bins.map((b,i)=>{
+    const h=(binCounts[i]/maxBin*55).toFixed(0);
+    const col=b>=8?'#a78bfa':b>=5?'#60a5fa':b>=2?'#3b82f6':'#7f1d1d';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <span style="font-size:8px;color:#4b6080;">${binCounts[i]||''}</span>
+      <div style="width:100%;height:${h}px;background:${col};border-radius:2px 2px 0 0;opacity:0.8;min-height:${binCounts[i]?3:0}px"></div>
+      <span style="font-size:8px;color:#354560;">${b}</span>
+    </div>`;
+  }).join('')}
+</div>
+<div style="text-align:center;font-size:9px;color:#243448;margin-top:2px;">정보·AI 과목 수</div>`;
+</script>
+</body>
+</html>

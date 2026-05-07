@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>인천 고등학교 계열별 격차 분석</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#06080f;color:#b8cce0;min-height:100vh;padding:18px;}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.tab{padding:6px 14px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #1a2e4a;background:#0c1220;color:#4a6080;transition:all .15s;font-family:'Noto Sans KR',sans-serif;}
+.tab.active{background:#122040;border-color:#3b82f6;color:#93c5fd;}
+.tab:hover:not(.active){border-color:#2a3f5f;color:#7a9fc0;}
+.pane{display:none;}
+.pane.active{display:block;}
+
+h2{font-size:14px;font-weight:700;color:#d8eaff;margin-bottom:3px;}
+.sub{font-size:10.5px;color:#2e4060;margin-bottom:14px;}
+.panel{background:#0a0f1c;border:1px solid #111e33;border-radius:10px;padding:14px;margin-bottom:12px;}
+.section-title{font-size:8.5px;text-transform:uppercase;letter-spacing:1px;color:#1e3050;font-weight:700;margin-bottom:8px;}
+
+/* Pills */
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.pill{background:#0c1a2c;border:1px solid #142030;border-radius:16px;padding:3px 10px;font-size:9.5px;}
+.pill span{font-weight:700;color:#7cb9f8;}
+
+/* ①이공계 styles */
+#stem-chart{display:flex;flex-direction:column;gap:3px;}
+.stem-row{display:flex;align-items:center;gap:7px;}
+.sr-label{width:90px;font-size:9.5px;color:#6a8aa8;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr-label.island{color:#f87171;}
+.sr-label.top{color:#93c5fd;}
+.sr-bar-bg{flex:1;height:17px;background:rgba(255,255,255,0.025);border-radius:2px;overflow:hidden;position:relative;}
+.sr-bar{height:100%;border-radius:2px;position:relative;display:flex;align-items:center;justify-content:flex-end;padding-right:5px;}
+.sr-val{font-size:9px;font-weight:700;color:rgba(255,255,255,0.55);position:relative;z-index:1;}
+.sr-val.ext{position:absolute;left:calc(100%+3px);color:#5a7a98;font-size:9px;}
+.avg-line{position:absolute;top:0;bottom:0;width:1.5px;background:rgba(251,191,36,0.5);z-index:2;}
+.sr-type{font-size:8px;width:24px;flex-shrink:0;color:#2a3f5f;}
+
+.layout2{display:flex;gap:12px;}
+.layout2>*{flex:1;}
+
+/* ③문이과 ratio scatter */
+svg text{font-family:'Noto Sans KR',sans-serif;}
+.tooltip{position:fixed;pointer-events:none;background:#060b16;border:1px solid #0f2035;border-radius:8px;padding:9px 12px;font-size:10px;z-index:9999;display:none;min-width:165px;box-shadow:0 6px 24px rgba(0,0,0,.6);}
+.tt-name{font-size:12px;font-weight:700;color:#d8eaff;margin-bottom:4px;border-bottom:1px solid #0f2035;padding-bottom:4px;}
+.tt-row{display:flex;justify-content:space-between;gap:10px;margin-top:2px;}
+.tt-k{color:#2a3f5f;font-size:9.5px;}
+.tt-v{font-weight:700;font-size:9.5px;}
+
+/* ④진로 박탈 */
+.career-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;}
+.cg-card{background:#0d1525;border-radius:7px;padding:9px 10px;border:1px solid #131f35;}
+.cg-card.zero{border-color:#3a1010;background:#100808;}
+.cg-card.low{border-color:#2a1a0a;background:#0e0c08;}
+.cg-card.mid{border-color:#1a2010;background:#0b0f08;}
+.cg-card.high{border-color:#0a2020;background:#081210;}
+.cgc-name{font-size:10px;font-weight:700;margin-bottom:4px;}
+.cgc-name.zero{color:#f87171;}
+.cgc-name.low{color:#fb923c;}
+.cgc-name.mid{color:#a3e635;}
+.cgc-name.high{color:#34d399;}
+.cgc-bar-bg{height:6px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden;margin-bottom:4px;}
+.cgc-bar{height:100%;border-radius:3px;}
+.cgc-info{display:flex;justify-content:space-between;font-size:9px;color:#2a3f5f;}
+.cgc-val{font-weight:700;}
+
+/* district career heatmap */
+.dc-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.dc-label{width:60px;font-size:9.5px;color:#5a7a98;text-align:right;}
+.dc-bar-bg{flex:1;height:20px;background:rgba(255,255,255,0.02);border-radius:2px;overflow:hidden;}
+.dc-bar{height:100%;border-radius:2px;display:flex;align-items:center;padding:0 6px;}
+.dc-val{font-size:9px;font-weight:700;color:rgba(255,255,255,0.6);}
+.dc-cnt{font-size:9px;color:#2a3f5f;width:22px;text-align:right;}
+
+.insight{background:#090e1c;border:1px solid #0f1e35;border-radius:7px;padding:10px 12px;margin-top:10px;}
+.ins-title{font-size:8.5px;color:#2563eb;text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:5px;}
+.ins-text{font-size:10px;color:#5a7898;line-height:1.65;}
+.ins-text strong{color:#93c5fd;}
+
+.note{font-size:9px;color:#111e30;line-height:1.6;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab(0)">① 이공계 트랙 지원력</button>
+  <button class="tab" onclick="showTab(1)">③ 문과 vs 이과 편향도</button>
+  <button class="tab" onclick="showTab(2)">④ 진로·교양 클러스터 박탈</button>
+</div>
+
+<!-- ① 이공계 트랙 지원력 -->
+<div class="pane active" id="pane0">
+  <h2>📐 이공계 트랙 지원력 — 과학 + 수학 클러스터 합산</h2>
+  <div class="sub">과학 심화 + 수학 선택과목 총량으로 측정 | 이공계 대입 준비 가능성과 직결</div>
+  <div class="pills" id="stem-pills"></div>
+  <div class="layout2">
+    <div class="panel">
+      <div class="section-title">▸ 학교별 이공계 과목 수 (과학+수학) — 전체 81개교</div>
+      <div id="stem-chart"></div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="section-title">▸ 구별 이공계 트랙 평균</div>
+        <div id="stem-dist"></div>
+      </div>
+      <div class="panel" style="margin-top:12px;">
+        <div class="section-title">▸ 이공계 vs 소득 산점도 (구 단위)</div>
+        <svg id="stem-scatter" viewBox="0 0 280 180" width="100%"></svg>
+      </div>
+      <div class="insight">
+        <div class="ins-title">🔍 해석</div>
+        <div class="ins-text">
+          <strong>섬 지역(강화·옹진군)은 이공계 과목이 평균 24개</strong>로, 미추홀구 최고 평균(31.9개)과 8개 가까이 차이난다.
+          대청고(18개)는 전체 최저 — 물리·화학 심화과목이 거의 없어 이공계 대입 준비가 구조적으로 불가능한 수준이다.
+          주목할 점은 <strong>소득 상위인 연수구가 이공계 1위가 아니라는 것</strong> — 미추홀·부평구의 과학중점 공립교(선인고, 인천산곡고)가 오히려 상위를 차지해,
+          <strong>이공계 역량은 소득보다 학교의 '과학중점' 지정 여부가 더 강하게 결정</strong>함을 보여준다.
+          단, 섬 지역 학교는 과학중점 지정 자체가 불가능한 구조이므로 지역 격차는 여전히 구조적이다.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">* 과학 클러스터: 물리학·화학·생명과학·지구과학 기본/심화/실험 및 고급과학 포함 | 수학 클러스터: 대수·기하·미적분·통계 등 포함</div>
+</div>
+
+<!-- ③ 문과 vs 이과 편향도 -->
+<div class="pane" id="pane1">
+  <h2>⚖️ 문과 vs 이과 편향도 — (과학+수학) / 사회·역사 비율</h2>
+  <div class="sub">비율 > 1.0 : 이과 편향 | 비율 < 1.0 : 문과 편향 | 비율 ≈ 1.0 : 균형형</div>
+  <div class="pills" id="ratio-pills"></div>
+  <div class="layout2">
+    <div class="panel">
+      <div class="section-title">▸ 학교별 문/이과 편향도 (이과↑ = 오른쪽)</div>
+      <svg id="ratio-svg" viewBox="0 0 380 520" width="100%"></svg>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="section-title">▸ 구별 평균 편향도</div>
+        <div id="ratio-dist"></div>
+      </div>
+      <div class="panel" style="margin-top:12px;">
+        <div class="section-title">▸ 설립유형별 편향도 분포</div>
+        <svg id="ratio-box" viewBox="0 0 280 160" width="100%"></svg>
+      </div>
+      <div class="insight">
+        <div class="ins-title">🔍 해석</div>
+        <div class="ins-text">
+          전체 81교의 중앙값은 <strong>약 1.47</strong> — 인천 고등학교는 전반적으로 이과 편향이 강하다.
+          <strong>선인고(38과목 과학) 등 과학중점교는 편향도 2.0 이상</strong>으로 이공계 일변도.
+          흥미롭게도 <strong>사립 명문교(인성여고, 숭덕여고 등)는 오히려 사회·역사 과목이 많아 문과 편향</strong> 경향.
+          이는 사립교가 수시 인문계 전형(논술·서류)에 특화하는 전략의 반영으로 해석된다.
+          섬 지역은 편향도가 낮고 균형형에 가깝지만, 이는 '균형'이 아니라 <strong>과학과 사회 모두 절대 부족</strong>한 상태임에 주의해야 한다.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">* 편향도 = (과학+수학 과목 수) ÷ 사회·역사 과목 수 | 1.0 = 완전 균형</div>
+</div>
+
+<!-- ④ 진로·교양 클러스터 박탈 -->
+<div class="pane" id="pane2">
+  <h2>🎯 진로·교양 클러스터 박탈 — 고교학점제의 공허함</h2>
+  <div class="sub">진로·교양 클러스터: 진로와 직업, 교육의 이해, 인간과 심리, 창업일반, 지식재산 등 자기설계 영역</div>
+  <div class="pills" id="career-pills"></div>
+  <div class="layout2">
+    <div>
+      <div class="panel">
+        <div class="section-title">▸ 구별 진로·교양 과목 평균</div>
+        <div id="career-dist"></div>
+      </div>
+      <div class="panel" style="margin-top:12px;">
+        <div class="section-title">▸ 진로·교양 × 소득 산점도</div>
+        <svg id="career-scatter" viewBox="0 0 280 180" width="100%"></svg>
+      </div>
+      <div class="insight">
+        <div class="ins-title">🔍 해석</div>
+        <div class="ins-text">
+          진로·교양 <strong>0개 학교 7교</strong> — 계산고·교동고·백령고·인천부흥고·인천중산고·작전고·제물포고.
+          특히 과학중점교(계산고·선인고)나 AI융합중점교에서 <strong>진로·교양 과목이 0개</strong>인 역설이 발생한다.
+          이는 특화 트랙 구성 시 진로·교양 영역을 희생하는 구조 — <strong>고교학점제가 표방하는 '자기주도 진로 설계'와 정면으로 충돌</strong>한다.
+          구별로는 <strong>계양구 평균 4.4개, 연수구 4.8개인 반면 중구(영종도 포함) 5.7개, 미추홀구 5.0개</strong>로
+          단순히 소득이 높다고 진로 과목이 많은 것도 아니다.
+          <strong>인성여고(21개), 인천대건고(14개)</strong>는 극단적 상위로, 사립교 특유의 인문·진로 콘텐츠 집중 전략을 보여준다.
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="section-title">▸ 학교별 진로·교양 과목 수 전체 분포</div>
+      <div class="career-grid" id="career-grid"></div>
+    </div>
+  </div>
+  <div class="note">* 진로·교양 클러스터: 진로와 직업, 교육의 이해, 인간과 심리·철학, 금융과 경제생활, 지식재산일반, 창업일반, 논술, 보건 등 포함</div>
+</div>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+const SCHOOLS = [{"n":"가림고","d":"서구","t":"공립","c":{"국어":9,"수학":11,"영어":9,"과학":24,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":3,"외국어":4,"진로·교양":7},"island":false},{"n":"가정고","d":"서구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":21,"예술":8,"체육·건강":7,"정보·AI":2,"외국어":11,"진로·교양":6},"island":false},{"n":"강화고","d":"강화군","t":"공립","c":{"국어":9,"수학":9,"영어":9,"과학":19,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":2,"외국어":4,"진로·교양":3},"island":true},{"n":"강화여고","d":"강화군","t":"공립","c":{"국어":8,"수학":8,"영어":8,"과학":19,"사회·역사":24,"예술":4,"체육·건강":6,"정보·AI":2,"외국어":6,"진로·교양":12},"island":true},{"n":"계산고","d":"계양구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":8,"체육·건강":6,"정보·AI":10,"외국어":8,"진로·교양":0},"island":false},{"n":"계산여고","d":"계양구","t":"공립","c":{"국어":10,"수학":9,"영어":10,"과학":19,"사회·역사":20,"예술":6,"체육·건강":6,"정보·AI":8,"외국어":10,"진로·교양":3},"island":false},{"n":"계양고","d":"계양구","t":"공립","c":{"국어":9,"수학":9,"영어":9,"과학":27,"사회·역사":18,"예술":6,"체육·건강":6,"정보·AI":2,"외국어":4,"진로·교양":4},"island":false},{"n":"교동고","d":"강화군","t":"공립","c":{"국어":7,"수학":7,"영어":7,"과학":14,"사회·역사":20,"예술":6,"체육·건강":9,"정보·AI":4,"외국어":8,"진로·교양":0},"island":true},{"n":"대인고","d":"서구","t":"사립","c":{"국어":9,"수학":9,"영어":9,"과학":19,"사회·역사":19,"예술":9,"체육·건강":8,"정보·AI":4,"외국어":6,"진로·교양":3},"island":false},{"n":"대청고","d":"옹진군","t":"공립","c":{"국어":6,"수학":6,"영어":6,"과학":12,"사회·역사":16,"예술":4,"체육·건강":6,"정보·AI":2,"외국어":6,"진로·교양":2},"island":true},{"n":"덕신고","d":"강화군","t":"공립","c":{"국어":8,"수학":8,"영어":8,"과학":18,"사회·역사":18,"예술":4,"체육·건강":6,"정보·AI":0,"외국어":4,"진로·교양":4},"island":true},{"n":"덕적고","d":"옹진군","t":"공립","c":{"국어":8,"수학":10,"영어":6,"과학":19,"사회·역사":16,"예술":4,"체육·건강":6,"정보·AI":3,"외국어":8,"진로·교양":4},"island":true},{"n":"동산고","d":"동구","t":"사립","c":{"국어":8,"수학":11,"영어":6,"과학":19,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":2,"진로·교양":6},"island":false},{"n":"명신여고","d":"부평구","t":"사립","c":{"국어":11,"수학":12,"영어":10,"과학":23,"사회·역사":19,"예술":12,"체육·건강":10,"정보·AI":6,"외국어":6,"진로·교양":6},"island":false},{"n":"문일여고","d":"남동구","t":"사립","c":{"국어":10,"수학":12,"영어":8,"과학":20,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":4,"진로·교양":6},"island":false},{"n":"박문여고","d":"연수구","t":"사립","c":{"국어":6,"수학":8,"영어":6,"과학":19,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":2,"외국어":4,"진로·교양":8},"island":false},{"n":"백령고","d":"옹진군","t":"공립","c":{"국어":8,"수학":8,"영어":8,"과학":14,"사회·역사":14,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":0},"island":true},{"n":"백석고","d":"서구","t":"공립","c":{"국어":10,"수학":13,"영어":10,"과학":19,"사회·역사":24,"예술":4,"체육·건강":6,"정보·AI":3,"외국어":7,"진로·교양":8},"island":false},{"n":"부개고","d":"부평구","t":"공립","c":{"국어":11,"수학":11,"영어":11,"과학":23,"사회·역사":19,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":6,"진로·교양":3},"island":false},{"n":"부개여고","d":"부평구","t":"공립","c":{"국어":9,"수학":10,"영어":10,"과학":20,"사회·역사":21,"예술":6,"체육·건강":6,"정보·AI":3,"외국어":4,"진로·교양":5},"island":false},{"n":"부광고","d":"부평구","t":"공립","c":{"국어":10,"수학":11,"영어":10,"과학":20,"사회·역사":21,"예술":10,"체육·건강":7,"정보·AI":3,"외국어":7,"진로·교양":6},"island":false},{"n":"부광여고","d":"부평구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":6,"체육·건강":6,"정보·AI":8,"외국어":9,"진로·교양":5},"island":false},{"n":"부평고","d":"부평구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":19,"예술":4,"체육·건강":6,"정보·AI":6,"외국어":4,"진로·교양":6},"island":false},{"n":"부평여고","d":"부평구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":20,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":10,"진로·교양":2},"island":false},{"n":"삼산고","d":"부평구","t":"공립","c":{"국어":9,"수학":10,"영어":9,"과학":23,"사회·역사":23,"예술":4,"체육·건강":6,"정보·AI":12,"외국어":9,"진로·교양":5},"island":false},{"n":"서도고","d":"강화군","t":"공립","c":{"국어":7,"수학":8,"영어":7,"과학":13,"사회·역사":15,"예술":6,"체육·건강":9,"정보·AI":2,"외국어":8,"진로·교양":2},"island":true},{"n":"서운고","d":"계양구","t":"공립","c":{"국어":10,"수학":11,"영어":10,"과학":20,"사회·역사":19,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":8,"진로·교양":10},"island":false},{"n":"서인천고","d":"서구","t":"사립","c":{"국어":9,"수학":9,"영어":9,"과학":19,"사회·역사":24,"예술":4,"체육·건강":8,"정보·AI":8,"외국어":11,"진로·교양":6},"island":false},{"n":"석정여고","d":"남동구","t":"공립","c":{"국어":11,"수학":13,"영어":11,"과학":19,"사회·역사":20,"예술":6,"체육·건강":6,"정보·AI":1,"외국어":4,"진로·교양":4},"island":false},{"n":"선인고","d":"미추홀구","t":"공립","c":{"국어":8,"수학":9,"영어":8,"과학":29,"사회·역사":24,"예술":7,"체육·건강":6,"정보·AI":9,"외국어":4,"진로·교양":6},"island":false},{"n":"세일고","d":"부평구","t":"사립","c":{"국어":6,"수학":12,"영어":6,"과학":18,"사회·역사":17,"예술":5,"체육·건강":6,"정보·AI":1,"외국어":4,"진로·교양":8},"island":false},{"n":"송도고","d":"연수구","t":"사립","c":{"국어":10,"수학":11,"영어":10,"과학":26,"사회·역사":22,"예술":4,"체육·건강":10,"정보·AI":6,"외국어":6,"진로·교양":6},"island":false},{"n":"숭덕여고","d":"남동구","t":"사립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":23,"예술":8,"체육·건강":6,"정보·AI":2,"외국어":4,"진로·교양":8},"island":false},{"n":"신명여고","d":"남동구","t":"사립","c":{"국어":10,"수학":12,"영어":12,"과학":24,"사회·역사":24,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":9},"island":false},{"n":"신송고","d":"연수구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":6,"외국어":6,"진로·교양":4},"island":false},{"n":"안남고","d":"계양구","t":"공립","c":{"국어":9,"수학":9,"영어":9,"과학":20,"사회·역사":20,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":6,"진로·교양":2},"island":false},{"n":"연수여고","d":"연수구","t":"공립","c":{"국어":9,"수학":11,"영어":11,"과학":21,"사회·역사":21,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":9,"진로·교양":3},"island":false},{"n":"연평고","d":"옹진군","t":"공립","c":{"국어":11,"수학":10,"영어":10,"과학":19,"사회·역사":21,"예술":4,"체육·건강":6,"정보·AI":3,"외국어":3,"진로·교양":9},"island":true},{"n":"옥련여고","d":"연수구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":24,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":5},"island":false},{"n":"인명여고","d":"미추홀구","t":"사립","c":{"국어":10,"수학":11,"영어":10,"과학":26,"사회·역사":19,"예술":4,"체육·건강":6,"정보·AI":6,"외국어":11,"진로·교양":5},"island":false},{"n":"인성여고","d":"중구","t":"사립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":9,"체육·건강":9,"정보·AI":7,"외국어":8,"진로·교양":21},"island":false},{"n":"인일여고","d":"중구","t":"공립","c":{"국어":11,"수학":10,"영어":10,"과학":19,"사회·역사":19,"예술":6,"체육·건강":10,"정보·AI":7,"외국어":11,"진로·교양":9},"island":false},{"n":"인제고","d":"남동구","t":"사립","c":{"국어":8,"수학":10,"영어":8,"과학":21,"사회·역사":23,"예술":4,"체육·건강":6,"정보·AI":6,"외국어":5,"진로·교양":5},"island":false},{"n":"인천고","d":"미추홀구","t":"공립","c":{"국어":10,"수학":9,"영어":6,"과학":21,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":3,"외국어":6,"진로·교양":3},"island":false},{"n":"인천고잔고","d":"남동구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":22,"예술":6,"체육·건강":6,"정보·AI":7,"외국어":8,"진로·교양":5},"island":false},{"n":"인천남고","d":"남동구","t":"공립","c":{"국어":9,"수학":12,"영어":10,"과학":25,"사회·역사":21,"예술":5,"체육·건강":6,"정보·AI":3,"외국어":4,"진로·교양":4},"island":false},{"n":"인천남동고","d":"남동구","t":"공립","c":{"국어":9,"수학":10,"영어":9,"과학":24,"사회·역사":21,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":6,"진로·교양":2},"island":false},{"n":"인천논현고","d":"남동구","t":"공립","c":{"국어":9,"수학":9,"영어":9,"과학":19,"사회·역사":21,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":3},"island":false},{"n":"인천대건고","d":"연수구","t":"사립","c":{"국어":9,"수학":10,"영어":8,"과학":20,"사회·역사":22,"예술":8,"체육·건강":6,"정보·AI":9,"외국어":6,"진로·교양":14},"island":false},{"n":"인천마전고","d":"서구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":6,"체육·건강":6,"정보·AI":5,"외국어":6,"진로·교양":3},"island":false},{"n":"인천만수고","d":"남동구","t":"공립","c":{"국어":9,"수학":10,"영어":9,"과학":20,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":3,"외국어":4,"진로·교양":8},"island":false},{"n":"인천부흥고","d":"부평구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":21,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":8,"진로·교양":0},"island":false},{"n":"인천산곡고","d":"부평구","t":"공립","c":{"국어":10,"수학":13,"영어":10,"과학":25,"사회·역사":19,"예술":6,"체육·건강":9,"정보·AI":2,"외국어":8,"진로·교양":4},"island":false},{"n":"인천상정고","d":"부평구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":22,"예술":4,"체육·건강":6,"정보·AI":5,"외국어":6,"진로·교양":2},"island":false},{"n":"인천세원고","d":"계양구","t":"공립","c":{"국어":9,"수학":9,"영어":9,"과학":19,"사회·역사":22,"예술":6,"체육·건강":6,"정보·AI":5,"외국어":9,"진로·교양":2},"island":false},{"n":"인천송천고","d":"남동구","t":"공립","c":{"국어":8,"수학":8,"영어":8,"과학":19,"사회·역사":19,"예술":4,"체육·건강":6,"정보·AI":5,"외국어":9,"진로·교양":5},"island":false},{"n":"인천신현고","d":"서구","t":"공립","c":{"국어":8,"수학":9,"영어":8,"과학":19,"사회·역사":21,"예술":4,"체육·건강":6,"정보·AI":1,"외국어":10,"진로·교양":7},"island":false},{"n":"인천여고","d":"연수구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":22,"사회·역사":23,"예술":8,"체육·건강":6,"정보·AI":6,"외국어":7,"진로·교양":2},"island":false},{"n":"인천연송고","d":"연수구","t":"공립","c":{"국어":10,"수학":11,"영어":10,"과학":19,"사회·역사":19,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":4,"진로·교양":4},"island":false},{"n":"인천영선고","d":"부평구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":24,"사회·역사":21,"예술":4,"체육·건강":6,"정보·AI":8,"외국어":8,"진로·교양":3},"island":false},{"n":"인천영종고","d":"중구","t":"공립","c":{"국어":7,"수학":9,"영어":7,"과학":19,"사회·역사":20,"예술":4,"체육·건강":8,"정보·AI":8,"외국어":5,"진로·교양":5},"island":false},{"n":"인천영흥고","d":"옹진군","t":"공립","c":{"국어":7,"수학":9,"영어":6,"과학":14,"사회·역사":15,"예술":4,"체육·건강":6,"정보·AI":4,"외국어":4,"진로·교양":1},"island":true},{"n":"인천예일고","d":"계양구","t":"공립","c":{"국어":10,"수학":7,"영어":9,"과학":20,"사회·역사":19,"예술":23,"체육·건강":6,"정보·AI":6,"외국어":8,"진로·교양":5},"island":false},{"n":"인천운남고","d":"중구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":5,"외국어":5,"진로·교양":3},"island":false},{"n":"인천원당고","d":"서구","t":"공립","c":{"국어":11,"수학":12,"영어":11,"과학":25,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":7},"island":false},{"n":"인천이음고","d":"서구","t":"공립","c":{"국어":10,"수학":12,"영어":12,"과학":19,"사회·역사":22,"예술":6,"체육·건강":6,"정보·AI":10,"외국어":10,"진로·교양":3},"island":false},{"n":"인천중산고","d":"중구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":0},"island":false},{"n":"인천청라고","d":"서구","t":"공립","c":{"국어":10,"수학":11,"영어":10,"과학":19,"사회·역사":24,"예술":8,"체육·건강":6,"정보·AI":9,"외국어":8,"진로·교양":3},"island":false},{"n":"인천초은고","d":"서구","t":"공립","c":{"국어":9,"수학":12,"영어":10,"과학":19,"사회·역사":21,"예술":4,"체육·건강":6,"정보·AI":7,"외국어":9,"진로·교양":7},"island":false},{"n":"인천해송고","d":"연수구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":21,"사회·역사":19,"예술":6,"체육·건강":6,"정보·AI":4,"외국어":8,"진로·교양":4},"island":false},{"n":"인천해원고","d":"서구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":3,"외국어":5,"진로·교양":2},"island":false},{"n":"인천효성고","d":"계양구","t":"공립","c":{"국어":10,"수학":12,"영어":10,"과학":25,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":2,"외국어":8,"진로·교양":7},"island":false},{"n":"인하부속고","d":"미추홀구","t":"사립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":7,"외국어":4,"진로·교양":3},"island":false},{"n":"인항고","d":"미추홀구","t":"사립","c":{"국어":6,"수학":11,"영어":8,"과학":19,"사회·역사":20,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":4,"진로·교양":3},"island":false},{"n":"인화여고","d":"미추홀구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":21,"사회·역사":21,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":7,"진로·교양":2},"island":false},{"n":"작전고","d":"계양구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":20,"예술":4,"체육·건강":6,"정보·AI":6,"외국어":6,"진로·교양":0},"island":false},{"n":"작전여고","d":"계양구","t":"공립","c":{"국어":9,"수학":9,"영어":9,"과학":20,"사회·역사":21,"예술":6,"체육·건강":6,"정보·AI":5,"외국어":7,"진로·교양":3},"island":false},{"n":"제물포고","d":"중구","t":"공립","c":{"국어":10,"수학":10,"영어":10,"과학":19,"사회·역사":19,"예술":6,"체육·건강":12,"정보·AI":8,"외국어":11,"진로·교양":0},"island":false},{"n":"제일고","d":"부평구","t":"사립","c":{"국어":11,"수학":13,"영어":12,"과학":19,"사회·역사":23,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":2,"진로·교양":9},"island":false},{"n":"학익고","d":"미추홀구","t":"공립","c":{"국어":8,"수학":10,"영어":8,"과학":20,"사회·역사":22,"예술":4,"체육·건강":7,"정보·AI":8,"외국어":8,"진로·교양":2},"island":false},{"n":"학익여고","d":"미추홀구","t":"공립","c":{"국어":10,"수학":11,"영어":10,"과학":19,"사회·역사":24,"예술":6,"체육·건강":6,"정보·AI":6,"외국어":6,"진로·교양":6},"island":false}];
+
+const INCOME={'강화군':370.9,'옹진군':293.0,'중구':360.8,'동구':398.0,'미추홀구':384.5,'연수구':478.5,'남동구':407.1,'부평구':412.4,'계양구':467.2,'서구':458.4};
+const DC={'강화군':'#f59e0b','옹진군':'#ef4444','중구':'#a78bfa','동구':'#38bdf8','미추홀구':'#34d399','연수구':'#3b82f6','남동구':'#06b6d4','부평구':'#f472b6','계양구':'#86efac','서구':'#fde047'};
+
+// Compute derived values
+const D=SCHOOLS.map(s=>({...s,
+  stem:s.c['과학']+s.c['수학'],
+  soc:s.c['사회·역사'],
+  career:s.c['진로·교양'],
+  income:INCOME[s.d]||0,
+  ratio: s.c['사회·역사']>0 ? (s.c['과학']+s.c['수학'])/s.c['사회·역사'] : 0
+}));
+
+const avg=arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+const dGroups={};
+D.forEach(s=>{(dGroups[s.d]||(dGroups[s.d]=[])).push(s);});
+const dStats=Object.entries(dGroups).map(([d,ss])=>({d,
+  avgStem:avg(ss.map(s=>s.stem)),
+  avgRatio:avg(ss.map(s=>s.ratio)),
+  avgCareer:avg(ss.map(s=>s.career)),
+  income:INCOME[d],col:DC[d],n:ss.length
+}));
+
+const tip=document.getElementById('tip');
+function showTip(e,html){
+  tip.innerHTML=html;tip.style.display='block';
+  let x=e.clientX+12,y=e.clientY+12;
+  if(x+200>window.innerWidth) x=e.clientX-214;
+  if(y+140>window.innerHeight) y=e.clientY-144;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideTip(){tip.style.display='none';}
+
+function showTab(i){
+  document.querySelectorAll('.pane').forEach((p,j)=>p.classList.toggle('active',j===i));
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+
+// ==============================
+// ① STEM Track
+// ==============================
+function buildStem(){
+  const sorted=[...D].sort((a,b)=>a.stem-b.stem);
+  const maxStem=38, avgStem=avg(D.map(s=>s.stem));
+  const avgPct=(avgStem/maxStem*100).toFixed(1);
+
+  // pills
+  document.getElementById('stem-pills').innerHTML=`
+    <div class="pill">전체 평균 <span>${avgStem.toFixed(1)}</span>개</div>
+    <div class="pill">최고 <span>38</span>개 (선인고·인천산곡고)</div>
+    <div class="pill">최저 <span>18</span>개 (대청고)</div>
+    <div class="pill">섬지역 평균 <span>${avg(D.filter(s=>s.island).map(s=>s.stem)).toFixed(1)}</span>개</div>
+    <div class="pill">본토 평균 <span>${avg(D.filter(s=>!s.island).map(s=>s.stem)).toFixed(1)}</span>개</div>`;
+
+  // bar chart
+  const bc=document.getElementById('stem-chart');
+  bc.innerHTML=sorted.map(s=>{
+    const w=(s.stem/maxStem*100).toFixed(1);
+    const col=s.island?'linear-gradient(90deg,#7f1d1d,#dc2626)':'linear-gradient(90deg,#1e3a5f,#3b82f6)';
+    const inside=s.stem>avgStem;
+    return `<div class="stem-row">
+      <span class="sr-label${s.island?' island':s.stem>=35?' top':''}">${s.n}</span>
+      <div class="sr-bar-bg">
+        <div class="avg-line" style="left:${avgPct}%"></div>
+        <div class="sr-bar" style="width:${w}%;background:${col}">
+          ${inside?`<span class="sr-val">${s.stem}</span>`:''}
+        </div>
+        ${!inside?`<span class="sr-val ext">${s.stem}</span>`:''}
+      </div>
+      <span class="sr-type">${s.t==='사립'?'사':'공'}</span>
+    </div>`;
+  }).join('');
+
+  // district bars
+  const ds=[...dStats].sort((a,b)=>b.avgStem-a.avgStem);
+  const maxD=Math.max(...ds.map(d=>d.avgStem));
+  document.getElementById('stem-dist').innerHTML=ds.map(dd=>{
+    const w=(dd.avgStem/maxD*100).toFixed(1);
+    return `<div class="dc-row">
+      <span class="dc-label">${dd.d}</span>
+      <div class="dc-bar-bg"><div class="dc-bar" style="width:${w}%;background:linear-gradient(90deg,${dd.col}22,${dd.col}88)">
+        <span class="dc-val">${dd.avgStem.toFixed(1)}</span>
+      </div></div>
+      <span class="dc-cnt">${dd.n}교</span>
+    </div>`;
+  }).join('');
+
+  // scatter
+  buildScatter('stem-scatter', dStats, d=>d.income, d=>d.avgStem, 260, 180, 500, 34, '소득(만원)', 'STEM 평균', d=>d.d);
+}
+
+// ==============================
+// ③ Ratio
+// ==============================
+function buildRatio(){
+  const sorted=[...D].sort((a,b)=>a.ratio-b.ratio);
+  const maxR=2.2, mid=1.0;
+  const allR=D.map(s=>s.ratio).sort((a,b)=>a-b);
+  const medR=allR[Math.floor(allR.length/2)];
+
+  document.getElementById('ratio-pills').innerHTML=`
+    <div class="pill">중앙값 <span>${medR.toFixed(2)}</span></div>
+    <div class="pill">최고 <span>${Math.max(...D.map(s=>s.ratio)).toFixed(2)}</span> (선인고)</div>
+    <div class="pill">최저 <span>${Math.min(...D.map(s=>s.ratio)).toFixed(2)}</span></div>
+    <div class="pill">이과편향(>1.4) <span>${D.filter(s=>s.ratio>1.4).length}</span>교</div>
+    <div class="pill">균형형(0.9~1.1) <span>${D.filter(s=>s.ratio>=0.9&&s.ratio<=1.1).length}</span>교</div>`;
+
+  // horizontal bar centered at ratio=1
+  const svgEl=document.getElementById('ratio-svg');
+  const W=380,H=520,PL=92,PR=16,PT=16,PB=16;
+  const IW=W-PL-PR,IH=H-PT-PB;
+  const rowH=IH/sorted.length;
+  let html='';
+  // center line
+  const cx=PL+(1.0/maxR)*IW;
+  html+=`<line x1="${cx}" y1="${PT}" x2="${cx}" y2="${PT+IH}" stroke="rgba(251,191,36,0.35)" stroke-width="1"/>`;
+  html+=`<text x="${cx}" y="${PT-3}" text-anchor="middle" font-size="7" fill="#6b5a20">1.0</text>`;
+  // ref lines
+  [0.5,1.5,2.0].forEach(r=>{
+    const x=PL+(r/maxR)*IW;
+    html+=`<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+IH}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`;
+    html+=`<text x="${x}" y="${PT-3}" text-anchor="middle" font-size="7" fill="#2a3f5f">${r}</text>`;
+  });
+
+  sorted.forEach((s,i)=>{
+    const y=PT+i*rowH+rowH/2;
+    const xEnd=PL+(s.ratio/maxR)*IW;
+    const col=s.island?'#f87171':s.ratio>1.6?'#3b82f6':s.ratio<0.9?'#f59e0b':'#34d399';
+    const bw=Math.abs(xEnd-cx);
+    const bx=s.ratio>=1?cx:xEnd;
+    html+=`<rect x="${bx}" y="${y-rowH*0.3}" width="${bw}" height="${rowH*0.6}" fill="${col}" fill-opacity="0.6" rx="1" class="ratio-bar" data-n="${s.n}" data-d="${s.d}" data-t="${s.t}" data-ratio="${s.ratio.toFixed(2)}" data-sci="${s.c['과학']}" data-math="${s.c['수학']}" data-soc="${s.soc}" style="cursor:pointer"/>`;
+    const tx=s.ratio>=1.3?PL+2:xEnd+3;
+    html+=`<text x="${tx}" y="${y+3.5}" font-size="7.5" fill="${s.island?'#f87171':s.ratio>=35?'#93c5fd':'#4a6080'}">${s.n}</text>`;
+  });
+
+  // axis
+  html+=`<text x="${PL+IW/2}" y="${H-2}" text-anchor="middle" font-size="8" fill="#2a3f5f">문이과 편향도 (이과↑)</text>`;
+  svgEl.innerHTML=html;
+
+  svgEl.querySelectorAll('.ratio-bar').forEach(el=>{
+    el.addEventListener('mouseenter',e=>showTip(e,`
+      <div class="tt-name">${el.dataset.n}</div>
+      <div class="tt-row"><span class="tt-k">행정구</span><span class="tt-v" style="color:#93c5fd">${el.dataset.d}</span></div>
+      <div class="tt-row"><span class="tt-k">편향도</span><span class="tt-v" style="color:#fbbf24">${el.dataset.ratio}</span></div>
+      <div class="tt-row"><span class="tt-k">과학</span><span class="tt-v" style="color:#60a5fa">${el.dataset.sci}개</span></div>
+      <div class="tt-row"><span class="tt-k">수학</span><span class="tt-v" style="color:#60a5fa">${el.dataset.math}개</span></div>
+      <div class="tt-row"><span class="tt-k">사회·역사</span><span class="tt-v" style="color:#a78bfa">${el.dataset.soc}개</span></div>
+      <div class="tt-row"><span class="tt-k">설립</span><span class="tt-v" style="color:#6b7e99">${el.dataset.t}</span></div>`));
+    el.addEventListener('mouseleave',hideTip);
+  });
+
+  // district avg
+  const ds=[...dStats].sort((a,b)=>b.avgRatio-a.avgRatio);
+  const maxDR=Math.max(...ds.map(d=>d.avgRatio));
+  document.getElementById('ratio-dist').innerHTML=ds.map(dd=>{
+    const w=(dd.avgRatio/maxDR*100).toFixed(1);
+    return `<div class="dc-row">
+      <span class="dc-label">${dd.d}</span>
+      <div class="dc-bar-bg"><div class="dc-bar" style="width:${w}%;background:linear-gradient(90deg,${dd.col}22,${dd.col}88)">
+        <span class="dc-val">${dd.avgRatio.toFixed(2)}</span>
+      </div></div>
+      <span class="dc-cnt">${dd.n}교</span>
+    </div>`;
+  }).join('');
+
+  // boxplot pub vs pri
+  const pubR=D.filter(s=>s.t==='공립').map(s=>s.ratio).sort((a,b)=>a-b);
+  const priR=D.filter(s=>s.t==='사립').map(s=>s.ratio).sort((a,b)=>a-b);
+  function bStats(arr){const q1=arr[Math.floor(arr.length*.25)],q3=arr[Math.floor(arr.length*.75)];return{min:arr[0],q1,med:arr[Math.floor(arr.length/2)],q3,max:arr[arr.length-1],avg:avg(arr)};}
+  const pb=bStats(pubR),prb=bStats(priR);
+  const W3=280,H3=160,P3={t:18,b:28,l:40,r:20};
+  const IW3=W3-P3.l-P3.r,IH3=H3-P3.t-P3.b;
+  const ys3=v=>P3.t+IH3-(v/2.4)*IH3;
+  let bh='';
+  [0.5,1.0,1.5,2.0].forEach(t=>{
+    bh+=`<line x1="${P3.l}" y1="${ys3(t)}" x2="${P3.l+IW3}" y2="${ys3(t)}" stroke="rgba(255,255,255,0.04)"/>`;
+    bh+=`<text x="${P3.l-4}" y="${ys3(t)+3.5}" text-anchor="end" font-size="7.5" fill="#2a3f5f">${t}</text>`;
+  });
+  bh+=`<text x="12" y="${P3.t+IH3/2}" text-anchor="middle" font-size="8" fill="#2a3f5f" transform="rotate(-90,12,${P3.t+IH3/2})">편향도</text>`;
+  function drawBox3(x,b,col,label){
+    const bw=44;
+    bh+=`<rect x="${x-bw/2}" y="${ys3(b.q3)}" width="${bw}" height="${ys3(b.q1)-ys3(b.q3)}" fill="${col}22" stroke="${col}" stroke-width="1.5" rx="2"/>`;
+    bh+=`<line x1="${x-bw/2}" y1="${ys3(b.med)}" x2="${x+bw/2}" y2="${ys3(b.med)}" stroke="${col}" stroke-width="2"/>`;
+    bh+=`<line x1="${x}" y1="${ys3(b.min)}" x2="${x}" y2="${ys3(b.q1)}" stroke="${col}" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="2,2"/>`;
+    bh+=`<line x1="${x}" y1="${ys3(b.q3)}" x2="${x}" y2="${ys3(b.max)}" stroke="${col}" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="2,2"/>`;
+    bh+=`<circle cx="${x}" cy="${ys3(b.avg)}" r="2.5" fill="${col}" opacity="0.8"/>`;
+    bh+=`<text x="${x}" y="${H3-6}" text-anchor="middle" font-size="9.5" fill="${col}" font-weight="700">${label}</text>`;
+    bh+=`<text x="${x}" y="${H3-16}" text-anchor="middle" font-size="8" fill="${col}" opacity="0.6">평균${b.avg.toFixed(2)}</text>`;
+  }
+  drawBox3(P3.l+IW3*0.3,pb,'#60a5fa','공립');
+  drawBox3(P3.l+IW3*0.7,prb,'#a78bfa','사립');
+  document.getElementById('ratio-box').innerHTML=bh;
+}
+
+// ==============================
+// ④ Career deprivation
+// ==============================
+function buildCareer(){
+  const maxC=Math.max(...D.map(s=>s.career));
+  const avgC=avg(D.map(s=>s.career));
+  const zeros=D.filter(s=>s.career===0).length;
+
+  document.getElementById('career-pills').innerHTML=`
+    <div class="pill">전체 평균 <span>${avgC.toFixed(1)}</span>개</div>
+    <div class="pill">최고 <span>${maxC}</span>개 (인성여고)</div>
+    <div class="pill">0개 학교 <span>${zeros}</span>교</div>
+    <div class="pill">1~3개 학교 <span>${D.filter(s=>s.career>=1&&s.career<=3).length}</span>교</div>
+    <div class="pill">10개+ 학교 <span>${D.filter(s=>s.career>=10).length}</span>교</div>`;
+
+  // grid
+  const sorted=[...D].sort((a,b)=>a.career-b.career);
+  const grid=document.getElementById('career-grid');
+  grid.innerHTML=sorted.map(s=>{
+    const tier=s.career===0?'zero':s.career<=3?'low':s.career<=6?'mid':'high';
+    const col=s.career===0?'#ef4444':s.career<=3?'#f97316':s.career<=6?'#a3e635':'#34d399';
+    const w=(s.career/maxC*100).toFixed(1);
+    return `<div class="cg-card ${tier}">
+      <div class="cgc-name ${tier}">${s.n}</div>
+      <div class="cgc-bar-bg"><div class="cgc-bar" style="width:${w}%;background:${col}88"></div></div>
+      <div class="cgc-info">
+        <span>${s.d}</span>
+        <span class="cgc-val" style="color:${col}">${s.career}개</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // district
+  const ds=[...dStats].sort((a,b)=>b.avgCareer-a.avgCareer);
+  const maxDC=Math.max(...ds.map(d=>d.avgCareer));
+  document.getElementById('career-dist').innerHTML=ds.map(dd=>{
+    const w=(dd.avgCareer/maxDC*100).toFixed(1);
+    return `<div class="dc-row">
+      <span class="dc-label">${dd.d}</span>
+      <div class="dc-bar-bg"><div class="dc-bar" style="width:${w}%;background:linear-gradient(90deg,${dd.col}22,${dd.col}88)">
+        <span class="dc-val">${dd.avgCareer.toFixed(1)}</span>
+      </div></div>
+      <span class="dc-cnt">${dd.n}교</span>
+    </div>`;
+  }).join('');
+
+  // scatter career vs income
+  buildScatter('career-scatter', dStats, d=>d.income, d=>d.avgCareer, 260, 180, 14, '소득(만원)', '진로·교양 평균', d=>d.d);
+}
+
+// Generic scatter builder
+function buildScatter(id, data, xFn, yFn, maxX, maxY, labelMaxY, xLabel, yLabel, nameFn){
+  const el=document.getElementById(id);
+  const W=280,H=180,P={t:14,b:28,l:34,r:16};
+  const IW=W-P.l-P.r,IH=H-P.t-P.b;
+  const xs=v=>P.l+(v-260)/(maxX-260)*IW;
+  const ys=v=>P.t+IH-(v/labelMaxY)*IH;
+
+  // linreg
+  const pts=data.map(d=>[xFn(d),yFn(d)]);
+  const n=pts.length,mx=avg(pts.map(p=>p[0])),my=avg(pts.map(p=>p[1]));
+  let num=0,den=0;
+  pts.forEach(([x,y])=>{num+=(x-mx)*(y-my);den+=(x-mx)**2;});
+  const sl=num/den,ic=my-sl*mx;
+  const ss_res=pts.reduce((a,[x,y])=>a+(y-(sl*x+ic))**2,0);
+  const ss_tot=pts.reduce((a,[x,y])=>a+(y-my)**2,0);
+  const r2=1-ss_res/ss_tot;
+
+  let html='';
+  html+=`<rect x="${P.l}" y="${P.t}" width="${IW}" height="${IH}" fill="rgba(255,255,255,0.01)" rx="3"/>`;
+  [300,350,400,450].forEach(t=>{
+    const x=xs(t);
+    html+=`<line x1="${x}" y1="${P.t}" x2="${x}" y2="${P.t+IH}" stroke="rgba(255,255,255,0.04)"/>`;
+    html+=`<text x="${x}" y="${H-4}" text-anchor="middle" font-size="7.5" fill="#1e3050">${t}</text>`;
+  });
+  const ry1=sl*260+ic,ry2=sl*maxX+ic;
+  html+=`<line x1="${xs(260)}" y1="${ys(ry1)}" x2="${xs(maxX)}" y2="${ys(ry2)}" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>`;
+  html+=`<text x="${xs(maxX)-4}" y="${ys(sl*maxX+ic)-6}" text-anchor="end" font-size="7.5" fill="#a78bfa" opacity="0.7">R²=${r2.toFixed(2)}</text>`;
+  html+=`<text x="${P.l+IW/2}" y="${H-1}" text-anchor="middle" font-size="7.5" fill="#1e3050">${xLabel}</text>`;
+
+  data.forEach(d=>{
+    const cx=xs(xFn(d)),cy=ys(yFn(d));
+    const col=d.col||'#60a5fa';
+    html+=`<circle cx="${cx}" cy="${cy}" r="6" fill="${col}" fill-opacity="0.7" stroke="#06080f" stroke-width="0.8"/>`;
+    html+=`<text x="${cx}" y="${cy-8}" text-anchor="middle" font-size="7" fill="${col}" opacity="0.8">${nameFn(d).replace('구','').replace('군','')}</text>`;
+  });
+  el.innerHTML=html;
+}
+
+buildStem();
+buildRatio();
+buildCareer();
+</script>
+</body>
+</html>
