@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인천 교육 격차 분석</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#0b0f1a;color:#c8d4e8;min-height:100vh;padding:24px;}
+h1{font-size:16px;font-weight:700;color:#e2ecff;letter-spacing:-.3px;}
+.sub{font-size:11px;color:#5a6a85;margin-top:3px;margin-bottom:18px;}
+#controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.btn{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid #2a3a55;background:#111827;color:#6b7e99;transition:all .15s;font-family:'Noto Sans KR',sans-serif;}
+.btn.active{background:#1c3461;border-color:#3b82f6;color:#93c5fd;}
+.btn:hover:not(.active){border-color:#3b4f6e;color:#a0b4cc;}
+#outer{display:flex;gap:16px;align-items:flex-start;}
+#chart-wrap{flex:1;position:relative;}
+svg{width:100%;display:block;}
+.tooltip{position:fixed;pointer-events:none;background:#0d1525;border:1px solid #1e3a5f;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9999;display:none;min-width:180px;box-shadow:0 8px 32px rgba(0,0,0,.6);}
+.tt-name{font-size:13px;font-weight:700;color:#e2ecff;margin-bottom:5px;border-bottom:1px solid #1e3a5f;padding-bottom:5px;}
+.tt-row{display:flex;justify-content:space-between;gap:12px;margin-top:3px;}
+.tt-key{color:#5a6a85;font-size:10.5px;}
+.tt-val{font-weight:600;color:#7dd3fc;font-size:10.5px;}
+.tt-ai-val{color:#a78bfa;}
+.tt-island{margin-top:6px;font-size:10px;color:#f87171;font-weight:500;}
+#sidebar{width:190px;flex-shrink:0;}
+.sidebar-card{background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:12px;margin-bottom:10px;}
+.sidebar-title{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#3b4f6e;margin-bottom:8px;font-weight:700;}
+.lg-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .1s;}
+.lg-item:hover{background:#1a2540;}
+.lg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.lg-label{font-size:10.5px;color:#8a9baf;flex:1;}
+.lg-avg{font-size:9.5px;color:#3b82f6;font-weight:600;}
+.stat-row{display:flex;justify-content:space-between;margin-bottom:5px;}
+.stat-label{font-size:10px;color:#5a6a85;}
+.stat-val{font-size:10px;font-weight:600;color:#7dd3fc;}
+.note{font-size:9.5px;color:#374151;line-height:1.65;margin-top:12px;border-top:1px solid #1a2035;padding-top:10px;}
+.insight-box{background:#0d1a2e;border:1px solid #1e3a5f;border-radius:8px;padding:10px;margin-bottom:8px;}
+.insight-title{font-size:9px;color:#3b82f6;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.insight-text{font-size:10px;color:#7a8fa8;line-height:1.6;}
+.highlight{color:#93c5fd;font-weight:600;}
+</style>
+</head>
+<body>
+<h1>📊 인천 고등학교 — 구별 가구소득 × 학교 과목 수 격차 분석</h1>
+<div class="sub">점 = 학교 1개 | ◆ 섬·도서지역 | 점선 원 = 구별 평균 | 파란 점선 = 전체 회귀선</div>
+
+<div id="controls">
+  <button class="btn active" data-f="all">전체 (81개교)</button>
+  <button class="btn" data-f="pub">공립</button>
+  <button class="btn" data-f="pri">사립</button>
+  <button class="btn" data-f="island">섬·도서지역</button>
+  <button class="btn" data-f="ai">정보·AI 강조</button>
+</div>
+
+<div id="outer">
+  <div id="chart-wrap">
+    <svg id="svg" viewBox="0 0 700 420"></svg>
+    <div class="tooltip" id="tip"></div>
+  </div>
+  <div id="sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-title">구별 범례</div>
+      <div id="legend"></div>
+    </div>
+    <div class="sidebar-card">
+      <div class="sidebar-title">핵심 수치</div>
+      <div id="stats"></div>
+    </div>
+    <div class="sidebar-card">
+      <div class="insight-title">🔍 격차 인사이트</div>
+      <div class="insight-box">
+        <div class="insight-title">소득 ↔ 과목 수</div>
+        <div class="insight-text">고소득 구일수록 과목 수가 많은 경향. <span class="highlight">연수구 평균 101개</span> vs <span class="highlight">옹진군 평균 77개</span> — 24개 차이.</div>
+      </div>
+      <div class="insight-box">
+        <div class="insight-title">섬 지역 절대 박탈</div>
+        <div class="insight-text">대청고·서도고는 <span class="highlight">66~77개</span>로 최하위. 물리적 거리가 교육 선택지를 직접 제한.</div>
+      </div>
+      <div class="insight-box">
+        <div class="insight-title">사립 과목 집중</div>
+        <div class="insight-text">사립 명문교(인성여고 123개, 송도고 111개)는 정보·AI·예술 과목에 집중 투자. 공립 대비 과목 구성이 다름.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  출처: 인천시 공공데이터포털 가구소득 실측치 | 2025 고교 교육과정 편제 기준 | 회귀선 R²는 전체 81개교 기준
+</div>
+
+<script>
+const INCOME={강화군:370.9,옹진군:293.0,중구:360.8,동구:398.0,미추홀구:384.5,연수구:478.5,남동구:407.1,부평구:412.4,계양구:467.2,서구:458.4};
+const DC={강화군:'#f59e0b',옹진군:'#ef4444',중구:'#a78bfa',동구:'#38bdf8',미추홀구:'#34d399',연수구:'#3b82f6',남동구:'#06b6d4',부평구:'#f472b6',계양구:'#86efac',서구:'#fde047'};
+const ISLAND=new Set(['강화군','옹진군']);
+const SCHOOLS=[
+  {n:"가림고",d:"서구",t:"공립",s:102,ai:3},{n:"가정고",d:"서구",t:"공립",s:104,ai:2},
+  {n:"강화고",d:"강화군",t:"공립",s:90,ai:2},{n:"강화여고",d:"강화군",t:"공립",s:97,ai:2},
+  {n:"계산고",d:"계양구",t:"공립",s:101,ai:10},{n:"계산여고",d:"계양구",t:"공립",s:101,ai:8},
+  {n:"계양고",d:"계양구",t:"공립",s:94,ai:2},{n:"교동고",d:"강화군",t:"공립",s:82,ai:4},
+  {n:"대인고",d:"서구",t:"사립",s:95,ai:4},{n:"대청고",d:"옹진군",t:"공립",s:66,ai:2},
+  {n:"덕신고",d:"강화군",t:"공립",s:78,ai:0},{n:"덕적고",d:"옹진군",t:"공립",s:84,ai:3},
+  {n:"동산고",d:"동구",t:"사립",s:86,ai:4},{n:"명신여고",d:"부평구",t:"사립",s:115,ai:6},
+  {n:"문일여고",d:"남동구",t:"사립",s:94,ai:4},{n:"박문여고",d:"연수구",t:"사립",s:83,ai:2},
+  {n:"백령고",d:"옹진군",t:"공립",s:74,ai:4},{n:"백석고",d:"서구",t:"공립",s:104,ai:3},
+  {n:"부개고",d:"부평구",t:"공립",s:100,ai:4},{n:"부개여고",d:"부평구",t:"공립",s:94,ai:3},
+  {n:"부광고",d:"부평구",t:"공립",s:105,ai:3},{n:"부광여고",d:"부평구",t:"공립",s:103,ai:8},
+  {n:"부평고",d:"부평구",t:"공립",s:94,ai:6},{n:"부평여고",d:"부평구",t:"공립",s:96,ai:4},
+  {n:"삼산고",d:"부평구",t:"공립",s:110,ai:12},{n:"서도고",d:"강화군",t:"공립",s:77,ai:2},
+  {n:"서운고",d:"계양구",t:"공립",s:106,ai:6},{n:"서인천고",d:"서구",t:"사립",s:107,ai:8},
+  {n:"석정여고",d:"남동구",t:"공립",s:95,ai:1},{n:"선인고",d:"미추홀구",t:"공립",s:110,ai:9},
+  {n:"세일고",d:"부평구",t:"사립",s:83,ai:1},{n:"송도고",d:"연수구",t:"사립",s:111,ai:6},
+  {n:"숭덕여고",d:"남동구",t:"사립",s:100,ai:2},{n:"신명여고",d:"남동구",t:"사립",s:113,ai:4},
+  {n:"신송고",d:"연수구",t:"공립",s:95,ai:6},{n:"안남고",d:"계양구",t:"공립",s:93,ai:6},
+  {n:"연수여고",d:"연수구",t:"공립",s:101,ai:4},{n:"연평고",d:"옹진군",t:"공립",s:96,ai:3},
+  {n:"옥련여고",d:"연수구",t:"공립",s:102,ai:4},{n:"인명여고",d:"미추홀구",t:"사립",s:108,ai:6},
+  {n:"인성여고",d:"중구",t:"사립",s:123,ai:7},{n:"인일여고",d:"중구",t:"공립",s:112,ai:7},
+  {n:"인제고",d:"남동구",t:"사립",s:96,ai:6},{n:"인천고",d:"미추홀구",t:"공립",s:93,ai:3},
+  {n:"인천고잔고",d:"남동구",t:"공립",s:103,ai:7},{n:"인천남고",d:"남동구",t:"공립",s:99,ai:3},
+  {n:"인천남동고",d:"남동구",t:"공립",s:95,ai:4},{n:"인천논현고",d:"남동구",t:"공립",s:94,ai:4},
+  {n:"인천대건고",d:"연수구",t:"사립",s:112,ai:9},{n:"인천마전고",d:"서구",t:"공립",s:95,ai:5},
+  {n:"인천만수고",d:"남동구",t:"공립",s:93,ai:3},{n:"인천부흥고",d:"부평구",t:"공립",s:96,ai:6},
+  {n:"인천산곡고",d:"부평구",t:"공립",s:106,ai:2},{n:"인천상정고",d:"부평구",t:"공립",s:94,ai:5},
+  {n:"인천세원고",d:"계양구",t:"공립",s:96,ai:5},{n:"인천송천고",d:"남동구",t:"공립",s:91,ai:5},
+  {n:"인천신현고",d:"서구",t:"공립",s:93,ai:1},{n:"인천여고",d:"연수구",t:"공립",s:104,ai:6},
+  {n:"인천연송고",d:"연수구",t:"공립",s:95,ai:6},{n:"인천영선고",d:"부평구",t:"공립",s:104,ai:8},
+  {n:"인천영종고",d:"중구",t:"공립",s:92,ai:8},{n:"인천영흥고",d:"옹진군",t:"공립",s:70,ai:4},
+  {n:"인천예일고",d:"계양구",t:"공립",s:113,ai:6},{n:"인천운남고",d:"중구",t:"공립",s:92,ai:5},
+  {n:"인천원당고",d:"서구",t:"공립",s:113,ai:4},{n:"인천이음고",d:"서구",t:"공립",s:110,ai:10},
+  {n:"인천중산고",d:"중구",t:"공립",s:96,ai:4},{n:"인천청라고",d:"서구",t:"공립",s:108,ai:9},
+  {n:"인천초은고",d:"서구",t:"공립",s:104,ai:7},{n:"인천해송고",d:"연수구",t:"공립",s:98,ai:4},
+  {n:"인천해원고",d:"서구",t:"공립",s:94,ai:3},{n:"인천효성고",d:"계양구",t:"공립",s:109,ai:2},
+  {n:"인하대부속고",d:"미추홀구",t:"사립",s:93,ai:7},{n:"인항고",d:"미추홀구",t:"사립",s:89,ai:6},
+  {n:"인화여고",d:"미추홀구",t:"공립",s:99,ai:6},{n:"작전고",d:"계양구",t:"공립",s:91,ai:6},
+  {n:"작전여고",d:"계양구",t:"공립",s:95,ai:5},{n:"제물포고",d:"중구",t:"공립",s:105,ai:8},
+  {n:"제일고",d:"부평구",t:"사립",s:107,ai:6},{n:"학익고",d:"미추홀구",t:"공립",s:97,ai:8},
+  {n:"학익여고",d:"미추홀구",t:"공립",s:104,ai:6}
+];
+const data=SCHOOLS.map(s=>({...s,income:INCOME[s.d]}));
+
+const W=700,H=420,PAD={t:24,b:52,l:52,r:20};
+const IW=W-PAD.l-PAD.r,IH=H-PAD.t-PAD.b;
+const minX=260,maxX=500,minY=60,maxY=130;
+const xs=v=>PAD.l+(v-minX)/(maxX-minX)*IW;
+const ys=v=>PAD.t+IH-(v-minY)/(maxY-minY)*IH;
+
+function linreg(pts){
+  const n=pts.length,mx=pts.reduce((a,p)=>a+p[0],0)/n,my=pts.reduce((a,p)=>a+p[1],0)/n;
+  let num=0,den=0;
+  for(const [x,y] of pts){num+=(x-mx)*(y-my);den+=(x-mx)**2;}
+  const sl=num/den,ic=my-sl*mx;
+  const ss_res=pts.reduce((a,[x,y])=>a+(y-(sl*x+ic))**2,0);
+  const ss_tot=pts.reduce((a,[x,y])=>a+(y-my)**2,0);
+  return{sl,ic,r2:1-ss_res/ss_tot};
+}
+
+let activeFilter='all';
+let hoverDistrict=null;
+
+function render(){
+  const svg=document.getElementById('svg');
+  let html='';
+
+  // bg grid
+  html+=`<rect x="${PAD.l}" y="${PAD.t}" width="${IW}" height="${IH}" fill="rgba(255,255,255,0.015)" rx="6"/>`;
+
+  // grid
+  [300,350,400,450].forEach(t=>{
+    const x=xs(t);
+    html+=`<line x1="${x}" y1="${PAD.t}" x2="${x}" y2="${PAD.t+IH}" stroke="rgba(255,255,255,0.04)"/>`;
+    html+=`<text x="${x}" y="${PAD.t+IH+18}" text-anchor="middle" font-size="10" fill="#374151">${t}만원</text>`;
+  });
+  [70,80,90,100,110,120].forEach(t=>{
+    const y=ys(t);
+    html+=`<line x1="${PAD.l}" y1="${y}" x2="${PAD.l+IW}" y2="${y}" stroke="rgba(255,255,255,0.04)"/>`;
+    html+=`<text x="${PAD.l-6}" y="${y+3.5}" text-anchor="end" font-size="10" fill="#374151">${t}</text>`;
+  });
+
+  // axis labels
+  html+=`<text x="${PAD.l+IW/2}" y="${H-5}" text-anchor="middle" font-size="11" fill="#4b5f7a">구별 월평균 가구소득 (만원)</text>`;
+  html+=`<text x="13" y="${PAD.t+IH/2}" text-anchor="middle" font-size="11" fill="#4b5f7a" transform="rotate(-90,13,${PAD.t+IH/2})">개설 과목 수</text>`;
+
+  // regression
+  const allPts=data.map(s=>[s.income,s.s]);
+  const reg=linreg(allPts);
+  const ry1=reg.sl*minX+reg.ic,ry2=reg.sl*maxX+reg.ic;
+  html+=`<line x1="${xs(minX)}" y1="${ys(ry1)}" x2="${xs(maxX)}" y2="${ys(ry2)}" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.5"/>`;
+  html+=`<text x="${xs(480)}" y="${ys(reg.sl*480+reg.ic)-8}" text-anchor="middle" font-size="9" fill="#3b82f6" opacity="0.7">R²=${reg.r2.toFixed(2)}</text>`;
+
+  // district avg rings
+  const dg={};
+  data.forEach(s=>{(dg[s.d]||(dg[s.d]=[])).push(s.s);});
+  Object.entries(dg).forEach(([d,vals])=>{
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    const inc=INCOME[d];
+    const col=DC[d];
+    const dim=hoverDistrict&&hoverDistrict!==d?'0.15':'0.6';
+    html+=`<circle cx="${xs(inc)}" cy="${ys(avg)}" r="11" fill="none" stroke="${col}" stroke-width="1.5" stroke-dasharray="3,2" opacity="${dim}"/>`;
+  });
+
+  // dots
+  const aiMax=12;
+  data.forEach(s=>{
+    const cx=xs(s.income),cy=ys(s.s);
+    const col=DC[s.d];
+    const island=ISLAND.has(s.d);
+    let show=true;
+    if(activeFilter==='pub'&&s.t!=='공립') show=false;
+    if(activeFilter==='pri'&&s.t!=='사립') show=false;
+    if(activeFilter==='island'&&!island) show=false;
+
+    let opacity=show?0.88:0.08;
+    if(hoverDistrict) opacity=hoverDistrict===s.d?(show?1:0.15):(show?0.12:0.04);
+
+    const r = activeFilter==='ai' ? (show?3+s.ai/aiMax*8:3) : 5.5;
+    const strokeW = activeFilter==='ai'&&show ? 1 : 0.8;
+    const fillCol = activeFilter==='ai'&&show ? (s.ai>=6?'#a78bfa':s.ai>=3?'#60a5fa':col) : col;
+
+    if(island){
+      const d2=r+1;
+      html+=`<polygon points="${cx},${cy-d2} ${cx+d2},${cy} ${cx},${cy+d2} ${cx-d2},${cy}" fill="${fillCol}" fill-opacity="${opacity}" stroke="#0b0f1a" stroke-width="${strokeW}" class="dot" data-n="${s.n}" data-d="${s.d}" data-income="${s.income}" data-s="${s.s}" data-t="${s.t}" data-ai="${s.ai}" data-island="1" style="cursor:pointer"/>`;
+    } else {
+      html+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fillCol}" fill-opacity="${opacity}" stroke="#0b0f1a" stroke-width="${strokeW}" class="dot" data-n="${s.n}" data-d="${s.d}" data-income="${s.income}" data-s="${s.s}" data-t="${s.t}" data-ai="${s.ai}" data-island="0" style="cursor:pointer"/>`;
+    }
+  });
+
+  // annotation labels for extreme points
+  const ann=[
+    {n:"대청고",dx:6,dy:-9,anchor:"start"},
+    {n:"인성여고",dx:6,dy:-9,anchor:"start"},
+    {n:"삼산고",dx:6,dy:-9,anchor:"start"},
+    {n:"덕신고",dx:-7,dy:12,anchor:"end"},
+    {n:"인천영흥고",dx:6,dy:10,anchor:"start"},
+    {n:"백령고",dx:-7,dy:-8,anchor:"end"},
+  ];
+  ann.forEach(a=>{
+    const s=data.find(x=>x.n===a.n);
+    if(s){
+      const show=activeFilter==='all'||activeFilter==='island'||(activeFilter==='pub'&&s.t==='공립');
+      if(show&&(!hoverDistrict||hoverDistrict===s.d)){
+        html+=`<text x="${xs(s.income)+a.dx}" y="${ys(s.s)+a.dy}" text-anchor="${a.anchor}" font-size="8.5" fill="#6b7e99" opacity="0.85">${a.n}</text>`;
+      }
+    }
+  });
+
+  svg.innerHTML=html;
+
+  // tooltip
+  const tip=document.getElementById('tip');
+  svg.querySelectorAll('.dot').forEach(el=>{
+    el.addEventListener('mouseenter',e=>{
+      const {n,d,income,s,t,ai,island}=el.dataset;
+      tip.innerHTML=`
+        <div class="tt-name">${n}</div>
+        <div class="tt-row"><span class="tt-key">행정구</span><span class="tt-val">${d}</span></div>
+        <div class="tt-row"><span class="tt-key">구 평균 소득</span><span class="tt-val">${income}만원/월</span></div>
+        <div class="tt-row"><span class="tt-key">개설 과목 수</span><span class="tt-val">${s}개</span></div>
+        <div class="tt-row"><span class="tt-key">정보·AI 과목</span><span class="tt-val tt-ai-val">${ai}개</span></div>
+        <div class="tt-row"><span class="tt-key">설립유형</span><span class="tt-val">${t}</span></div>
+        ${island==='1'?'<div class="tt-island">◆ 섬·도서지역 학교</div>':''}
+      `;
+      tip.style.display='block';
+    });
+    el.addEventListener('mousemove',e=>{
+      let lx=e.clientX+14,ly=e.clientY+14;
+      if(lx+200>window.innerWidth) lx=e.clientX-214;
+      if(ly+160>window.innerHeight) ly=e.clientY-164;
+      tip.style.left=lx+'px';tip.style.top=ly+'px';
+    });
+    el.addEventListener('mouseleave',()=>{tip.style.display='none';});
+  });
+
+  // legend
+  const legEl=document.getElementById('legend');
+  legEl.innerHTML=Object.entries(DC).map(([d,c])=>{
+    const vals=(dg[d]||[]);
+    const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):'-';
+    const inc=INCOME[d];
+    return `<div class="lg-item" data-d="${d}"><div class="lg-dot" style="background:${c}${ISLAND.has(d)?';border-radius:0;transform:rotate(45deg)':''}"></div><span class="lg-label">${d}</span><span class="lg-avg">${avg}개</span></div>`;
+  }).join('');
+
+  // stats
+  const statsEl=document.getElementById('stats');
+  const allSubj=data.map(s=>s.s);
+  const islandSubj=data.filter(s=>ISLAND.has(s.d)).map(s=>s.s);
+  const mainSubj=data.filter(s=>!ISLAND.has(s.d)).map(s=>s.s);
+  const avg=v=>Math.round(v.reduce((a,b)=>a+b,0)/v.length);
+  statsEl.innerHTML=`
+    <div class="stat-row"><span class="stat-label">전체 평균</span><span class="stat-val">${avg(allSubj)}개</span></div>
+    <div class="stat-row"><span class="stat-label">최고 (인성여고)</span><span class="stat-val">123개</span></div>
+    <div class="stat-row"><span class="stat-label">최저 (대청고)</span><span class="stat-val">66개</span></div>
+    <div class="stat-row"><span class="stat-label">본토 평균</span><span class="stat-val">${avg(mainSubj)}개</span></div>
+    <div class="stat-row"><span class="stat-label">섬지역 평균</span><span class="stat-val" style="color:#f87171">${avg(islandSubj)}개</span></div>
+    <div class="stat-row"><span class="stat-label">격차</span><span class="stat-val" style="color:#fbbf24">${avg(mainSubj)-avg(islandSubj)}개</span></div>
+    <div class="stat-row"><span class="stat-label">회귀 R²</span><span class="stat-val">${reg.r2.toFixed(3)}</span></div>
+  `;
+
+  // legend hover
+  document.querySelectorAll('.lg-item').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{hoverDistrict=el.dataset.d;render();});
+    el.addEventListener('mouseleave',()=>{hoverDistrict=null;render();});
+  });
+}
+
+// filter buttons
+document.querySelectorAll('.btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter=btn.dataset.f;
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

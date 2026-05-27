@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>섬지역 학교 과목 박탈 분석</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#080c14;color:#c8d8f0;padding:22px;min-height:100vh;}
+h1{font-size:15px;font-weight:700;color:#e8f0ff;margin-bottom:3px;}
+.sub{font-size:11px;color:#3d5070;margin-bottom:20px;}
+
+/* Layout */
+#main{display:flex;gap:18px;align-items:flex-start;}
+#left{flex:1;}
+#right{width:200px;flex-shrink:0;}
+
+/* Bar chart area */
+.section-title{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#2a3d58;font-weight:700;margin-bottom:10px;}
+#bar-chart{display:flex;flex-direction:column;gap:4px;}
+.bar-row{display:flex;align-items:center;gap:8px;position:relative;}
+.bar-label{width:88px;font-size:10px;color:#8a9fc0;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-label.island{color:#f87171;}
+.bar-wrap{flex:1;height:20px;position:relative;background:rgba(255,255,255,0.03);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1);position:relative;}
+.bar-fill::after{content:'';position:absolute;top:0;left:0;right:0;height:40%;background:rgba(255,255,255,0.08);border-radius:3px 3px 0 0;}
+.bar-val{position:absolute;right:5px;top:50%;transform:translateY(-50%);font-size:9.5px;font-weight:700;color:rgba(255,255,255,0.55);}
+.bar-val.over{right:auto;left:calc(100% + 4px);color:#8a9fc0;}
+.island-tag{font-size:8px;padding:1px 5px;border-radius:2px;background:rgba(248,113,113,0.15);color:#f87171;margin-left:4px;flex-shrink:0;}
+.avg-marker{position:absolute;top:0;bottom:0;width:2px;background:rgba(99,179,237,0.4);z-index:2;}
+.avg-label-top{position:absolute;top:-14px;font-size:8px;color:#63b3ed;transform:translateX(-50%);}
+
+/* Cluster heatmap */
+#heatmap{margin-top:22px;}
+.heat-table{width:100%;border-collapse:collapse;font-size:9.5px;}
+.heat-table th{font-size:8.5px;font-weight:700;color:#2a3d58;text-align:center;padding:4px 3px;border-bottom:1px solid #0d1525;}
+.heat-table td{text-align:center;padding:3px;border:1px solid #080c14;}
+.heat-table .row-label{text-align:left;padding-left:6px;font-size:9.5px;white-space:nowrap;}
+.heat-table .row-label.island{color:#f87171;}
+.heat-cell{border-radius:2px;font-size:9px;font-weight:600;}
+
+/* Gap summary */
+.gap-cards{display:flex;flex-direction:column;gap:8px;}
+.gap-card{background:#0d1525;border:1px solid #1a2e4a;border-radius:8px;padding:10px;}
+.gc-title{font-size:9px;color:#2a3d58;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700;}
+.gc-num{font-size:24px;font-weight:900;line-height:1;}
+.gc-unit{font-size:10px;color:#4b6080;margin-top:2px;}
+.red{color:#f87171;}.blue{color:#60a5fa;}.yellow{color:#fbbf24;}.green{color:#34d399;}
+
+/* Profile cards */
+#profiles{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.profile{background:#0d1525;border:1px solid #1a2e4a;border-radius:8px;padding:10px;flex:1;min-width:120px;}
+.pf-name{font-size:11px;font-weight:700;color:#e8f0ff;margin-bottom:6px;border-bottom:1px solid #1a2e4a;padding-bottom:5px;}
+.pf-name.island{color:#f87171;}
+.pf-row{display:flex;justify-content:space-between;gap:8px;margin-top:3px;}
+.pf-key{font-size:9.5px;color:#3d5070;}
+.pf-val{font-size:9.5px;font-weight:600;}
+.missing-subj{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px;}
+.ms-tag{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);color:#f87171;}
+.ms-tag.have{background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.2);color:#34d399;}
+
+.note{font-size:9.5px;color:#1e2d40;line-height:1.65;margin-top:14px;}
+</style>
+</head>
+<body>
+<h1>🏝 섬·도서지역 학교 과목 박탈 분석 — 절대적 교육 기회 격차</h1>
+<div class="sub">인천 옹진군·강화군 섬 소재 7개교 vs 본토 학교 비교 | 교과 클러스터별 과목 수 포함</div>
+
+<div id="main">
+<div id="left">
+
+  <!-- Bar chart -->
+  <div class="section-title">▸ 학교별 개설 과목 수 (전체 81개교 | 빨간색 = 섬지역)</div>
+  <div id="bar-chart"></div>
+
+  <!-- Cluster heatmap -->
+  <div id="heatmap">
+    <div class="section-title" style="margin-top:18px;">▸ 섬지역 vs 대표 본토교 — 교과 클러스터별 과목 수 비교</div>
+    <table class="heat-table" id="heat-tbl"></table>
+  </div>
+
+  <!-- Profile cards -->
+  <div class="section-title" style="margin-top:18px;">▸ 섬지역 학교 vs 본토 유사 규모교 — 놓치는 과목 프로필</div>
+  <div id="profiles"></div>
+
+</div>
+<div id="right">
+  <div class="section-title">▸ 핵심 지표</div>
+  <div class="gap-cards" id="gap-cards"></div>
+
+  <div class="section-title" style="margin-top:16px;">▸ 섬지역 7개교</div>
+  <div style="display:flex;flex-direction:column;gap:5px;" id="island-list"></div>
+</div>
+</div>
+
+<div class="note">
+  * 섬지역: 교동고(교동도)·덕신고(양도면)·서도고(서도면)·강화고·강화여고(강화읍) / 대청고(대청도)·덕적고(덕적도)·백령고(백령도)·연평고(연평도)·영흥고(영흥도)<br>
+  * 과목 수는 2025 교육과정 편제 기준 | 클러스터 분류: 국어·수학·영어·과학·사회역사·예술·체육건강·정보AI·외국어·진로교양
+</div>
+
+<script>
+const SCHOOLS=[
+  // 섬지역
+  {n:"교동고",d:"강화군",island:true,s:82,c:{국어:7,수학:7,영어:7,과학:14,사회:20,예술:6,체육:9,AI:4,외국어:8,진로:0}},
+  {n:"대청고",d:"옹진군",island:true,s:66,c:{국어:6,수학:6,영어:6,과학:12,사회:16,예술:4,체육:6,AI:2,외국어:6,진로:2}},
+  {n:"덕신고",d:"강화군",island:true,s:78,c:{국어:8,수학:8,영어:8,과학:18,사회:18,예술:4,체육:6,AI:0,외국어:4,진로:4}},
+  {n:"덕적고",d:"옹진군",island:true,s:84,c:{국어:8,수학:10,영어:6,과학:19,사회:16,예술:4,체육:6,AI:3,외국어:8,진로:4}},
+  {n:"백령고",d:"옹진군",island:true,s:74,c:{국어:8,수학:8,영어:8,과학:14,사회:14,예술:4,체육:6,AI:4,외국어:8,진로:0}},
+  {n:"서도고",d:"강화군",island:true,s:77,c:{국어:7,수학:8,영어:7,과학:13,사회:15,예술:6,체육:9,AI:2,외국어:8,진로:2}},
+  {n:"연평고",d:"옹진군",island:true,s:96,c:{국어:11,수학:10,영어:10,과학:19,사회:21,예술:4,체육:6,AI:3,외국어:3,진로:9}},
+  {n:"영흥고",d:"옹진군",island:true,s:70,c:{국어:7,수학:9,영어:6,과학:14,사회:15,예술:4,체육:6,AI:4,외국어:4,진로:1}},
+  // 본토 (비교군)
+  {n:"가림고",d:"서구",island:false,s:102,c:{국어:9,수학:11,영어:9,과학:24,사회:23,예술:6,체육:6,AI:3,외국어:4,진로:7}},
+  {n:"가정고",d:"서구",island:false,s:104,c:{국어:10,수학:10,영어:10,과학:19,사회:21,예술:8,체육:7,AI:2,외국어:11,진로:6}},
+  {n:"계산고",d:"계양구",island:false,s:101,c:{국어:10,수학:10,영어:10,과학:19,사회:20,예술:8,체육:6,AI:10,외국어:8,진로:0}},
+  {n:"서운고",d:"계양구",island:false,s:106,c:{국어:10,수학:11,영어:10,과학:20,사회:19,예술:6,체육:6,AI:6,외국어:8,진로:10}},
+  {n:"삼산고",d:"부평구",island:false,s:110,c:{국어:9,수학:10,영어:9,과학:23,사회:23,예술:4,체육:6,AI:12,외국어:9,진로:5}},
+  {n:"송도고",d:"연수구",island:false,s:111,c:{국어:10,수학:11,영어:10,과학:26,사회:22,예술:4,체육:10,AI:6,외국어:6,진로:6}},
+  {n:"인천효성고",d:"계양구",island:false,s:109,c:{국어:10,수학:12,영어:10,과학:25,사회:23,예술:6,체육:6,AI:2,외국어:8,진로:7}},
+  {n:"선인고",d:"미추홀구",island:false,s:110,c:{국어:8,수학:9,영어:8,과학:29,사회:24,예술:7,체육:6,AI:9,외국어:4,진로:6}},
+];
+
+const islandSchools=SCHOOLS.filter(s=>s.island);
+const mainlandSchools=SCHOOLS.filter(s=>!s.island);
+const allIslandAvg=v=>Math.round(islandSchools.reduce((a,s)=>a+v(s),0)/islandSchools.length*10)/10;
+const allMainAvg=v=>Math.round(mainlandSchools.reduce((a,s)=>a+v(s),0)/mainlandSchools.length*10)/10;
+const overallAvg=Math.round(SCHOOLS.reduce((a,s)=>a+s.s,0)/SCHOOLS.length);
+
+// Sort all for bar
+const sorted=[...SCHOOLS].sort((a,b)=>a.s-b.s);
+const maxS=123;
+
+// Bar chart
+const bc=document.getElementById('bar-chart');
+bc.innerHTML=sorted.map(s=>{
+  const pct=(s.s/maxS*100).toFixed(1);
+  const col=s.island?'linear-gradient(90deg,#7f1d1d,#dc2626)':'linear-gradient(90deg,#1e3a5f,#3b82f6)';
+  const avgPct=(overallAvg/maxS*100).toFixed(1);
+  return `<div class="bar-row">
+    <span class="bar-label${s.island?' island':''}">${s.n}</span>
+    <div class="bar-wrap">
+      <div class="avg-marker" style="left:${avgPct}%"><span class="avg-label-top">${overallAvg}</span></div>
+      <div class="bar-fill" style="width:${pct}%;background:${col}">
+        <span class="bar-val${s.s>overallAvg+5?'':' over'}" style="${s.s>overallAvg+5?'':'position:static;padding-left:4px;color:#8a9fc0'}">${s.s}</span>
+      </div>
+    </div>
+    ${s.island?'<span class="island-tag">섬</span>':'<span style="width:22px"></span>'}
+  </div>`;
+}).join('');
+
+// Heatmap
+const clusters=['국어','수학','영어','과학','사회','예술','체육','AI','외국어','진로'];
+const clusterLabels={국어:'국어',수학:'수학',영어:'영어',과학:'과학',사회:'사회·역사',예술:'예술',체육:'체육',AI:'정보·AI',외국어:'외국어',진로:'진로·교양'};
+const heatSchools=[...islandSchools, ...mainlandSchools.slice(0,4)];
+const maxVals={};
+clusters.forEach(cl=>{maxVals[cl]=Math.max(...heatSchools.map(s=>s.c[cl]||0));});
+
+function heatColor(val,max,isIsland){
+  if(max===0) return '#0d1525';
+  const pct=val/max;
+  if(isIsland){
+    const r=Math.round(100+pct*155),g=Math.round(20+pct*30),b=Math.round(20+pct*30);
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const r=Math.round(15+pct*30),g=Math.round(40+pct*80),b=Math.round(80+pct*120);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+const tbl=document.getElementById('heat-tbl');
+tbl.innerHTML=`<thead><tr>
+  <th style="text-align:left;width:80px;">학교</th>
+  ${clusters.map(cl=>`<th>${cl==='AI'?'AI':cl==='사회'?'사회':cl}</th>`).join('')}
+  <th>합계</th>
+</tr></thead><tbody>
+${heatSchools.map(s=>`<tr>
+  <td class="row-label${s.island?' island':''}">${s.n}${s.island?'◆':''}</td>
+  ${clusters.map(cl=>{
+    const v=s.c[cl]||0;
+    const bg=heatColor(v,maxVals[cl],s.island);
+    return `<td class="heat-cell" style="background:${bg};color:rgba(255,255,255,0.85)">${v}</td>`;
+  }).join('')}
+  <td style="font-weight:700;color:${s.island?'#f87171':'#60a5fa'};background:#0d1525">${s.s}</td>
+</tr>`).join('')}
+</tbody>`;
+
+// Profile cards
+const islandSample=[islandSchools[1],islandSchools[4],islandSchools[7]]; // 대청고, 백령고, 영흥고
+const mainSample=[SCHOOLS.find(s=>s.n==='서운고'), SCHOOLS.find(s=>s.n==='가림고')];
+const keySubjects=['정보·AI','진로교양','예술','과학실험'];
+const profCards=document.getElementById('profiles');
+
+const islandAvgs={};
+clusters.forEach(cl=>{islandAvgs[cl]=allIslandAvg(s=>s.c[cl]||0);});
+const mainlandAvgs={};
+clusters.forEach(cl=>{mainlandAvgs[cl]=allMainAvg(s=>s.c[cl]||0);});
+
+profCards.innerHTML=`
+  <div class="profile" style="min-width:160px;">
+    <div class="pf-name island">섬지역 평균 (8교)</div>
+    ${clusters.map(cl=>`
+      <div class="pf-row">
+        <span class="pf-key">${clusterLabels[cl]}</span>
+        <span class="pf-val" style="color:${islandAvgs[cl]<mainlandAvgs[cl]?'#f87171':'#34d399'}">${islandAvgs[cl].toFixed(1)}</span>
+      </div>`).join('')}
+    <div class="pf-row" style="margin-top:5px;border-top:1px solid #1a2e4a;padding-top:5px;">
+      <span class="pf-key">총합 평균</span>
+      <span class="pf-val red">${allIslandAvg(s=>s.s).toFixed(1)}개</span>
+    </div>
+  </div>
+  <div class="profile" style="min-width:160px;">
+    <div class="pf-name">본토 평균 (8교 샘플)</div>
+    ${clusters.map(cl=>`
+      <div class="pf-row">
+        <span class="pf-key">${clusterLabels[cl]}</span>
+        <span class="pf-val blue">${mainlandAvgs[cl].toFixed(1)}</span>
+      </div>`).join('')}
+    <div class="pf-row" style="margin-top:5px;border-top:1px solid #1a2e4a;padding-top:5px;">
+      <span class="pf-key">총합 평균</span>
+      <span class="pf-val blue">${allMainAvg(s=>s.s).toFixed(1)}개</span>
+    </div>
+  </div>
+  <div class="profile" style="min-width:160px;background:#0f1a1a;border-color:#1a3a2a;">
+    <div class="pf-name" style="color:#34d399;">격차 (본토-섬)</div>
+    ${clusters.map(cl=>{
+      const diff=(mainlandAvgs[cl]-islandAvgs[cl]).toFixed(1);
+      return `<div class="pf-row">
+        <span class="pf-key">${clusterLabels[cl]}</span>
+        <span class="pf-val" style="color:${diff>0?'#fbbf24':diff<0?'#34d399':'#4b6080'}">+${diff}</span>
+      </div>`;
+    }).join('')}
+    <div class="pf-row" style="margin-top:5px;border-top:1px solid #1a3a2a;padding-top:5px;">
+      <span class="pf-key">총 격차</span>
+      <span class="pf-val yellow">+${(allMainAvg(s=>s.s)-allIslandAvg(s=>s.s)).toFixed(1)}개</span>
+    </div>
+  </div>
+`;
+
+// Gap cards
+const gapEl=document.getElementById('gap-cards');
+const isAvg=allIslandAvg(s=>s.s);
+const mainAvg=allMainAvg(s=>s.s);
+gapEl.innerHTML=`
+  <div class="gap-card">
+    <div class="gc-title">섬지역 평균</div>
+    <div class="gc-num red">${isAvg.toFixed(0)}</div>
+    <div class="gc-unit">개 과목</div>
+  </div>
+  <div class="gap-card">
+    <div class="gc-title">본토 평균 (샘플)</div>
+    <div class="gc-num blue">${mainAvg.toFixed(0)}</div>
+    <div class="gc-unit">개 과목</div>
+  </div>
+  <div class="gap-card">
+    <div class="gc-title">절대 격차</div>
+    <div class="gc-num yellow">${(mainAvg-isAvg).toFixed(0)}</div>
+    <div class="gc-unit">개 과목 차이</div>
+  </div>
+  <div class="gap-card">
+    <div class="gc-title">최저 (대청고)</div>
+    <div class="gc-num red">66</div>
+    <div class="gc-unit">개 과목</div>
+  </div>
+  <div class="gap-card">
+    <div class="gc-title">AI 격차</div>
+    <div class="gc-num" style="color:#a78bfa">${(allMainAvg(s=>s.c.AI)-allIslandAvg(s=>s.c.AI)).toFixed(1)}</div>
+    <div class="gc-unit">개 (본토-섬)</div>
+  </div>
+`;
+
+// Island list
+const ilEl=document.getElementById('island-list');
+ilEl.innerHTML=[...islandSchools].sort((a,b)=>a.s-b.s).map(s=>`
+  <div style="background:#0d1525;border:1px solid #1a2e4a;border-radius:6px;padding:7px 9px;">
+    <div style="font-size:10.5px;font-weight:700;color:#f87171;">◆ ${s.n}</div>
+    <div style="font-size:9.5px;color:#3d5070;margin-top:2px;">${s.d} | ${s.s}개 과목</div>
+    <div style="font-size:9px;color:#2a3d58;margin-top:2px;">정보AI: ${s.c.AI}개 | 진로: ${s.c.진로}개</div>
+  </div>
+`).join('');
+</script>
+</body>
+</html>

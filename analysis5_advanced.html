@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>📊 분석 도출 과정 시각화</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#0f1117;color:#e2e8f0;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+h1{font-size:13px;font-weight:800;color:#fff;padding:12px 16px;background:linear-gradient(135deg,#1a2540,#0d1520);border-bottom:1px solid #2d3748;flex-shrink:0;display:flex;align-items:center;gap:8px;}
+h1 span{font-size:10px;font-weight:400;color:#718096;margin-left:auto;}
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* 왼쪽 스텝 패널 */
+.steps{width:220px;flex-shrink:0;background:#161b27;border-right:1px solid #2d3748;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.step-card{padding:10px 12px;background:#1e2535;border:1px solid #2d3748;border-radius:8px;cursor:pointer;transition:all .2s;}
+.step-card:hover{border-color:#4299e1;background:#1a2844;}
+.step-card.active{border-color:#4299e1;background:#1a3461;box-shadow:0 0 0 2px rgba(66,153,225,0.2);}
+.step-num{font-size:9px;color:#718096;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.step-title{font-size:11.5px;font-weight:700;color:#e2e8f0;margin-bottom:4px;}
+.step-card.active .step-title{color:#90cdf4;}
+.step-desc{font-size:9.5px;color:#718096;line-height:1.5;}
+.step-badge{display:inline-block;margin-top:5px;padding:2px 7px;background:rgba(66,153,225,0.15);border:1px solid rgba(66,153,225,0.3);border-radius:10px;font-size:8.5px;color:#90cdf4;font-weight:600;}
+.run-btn{margin-top:6px;padding:5px 10px;background:#2b6cb0;border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;width:100%;transition:background .2s;}
+.run-btn:hover{background:#3182ce;}
+
+/* 오른쪽 시각화 영역 */
+.viz{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px;gap:10px;}
+.viz-title{font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;letter-spacing:.6px;flex-shrink:0;}
+.viz-area{flex:1;overflow:hidden;position:relative;}
+
+/* ── Step1: 정렬 테이블 ── */
+#viz-1{display:none;flex-direction:column;gap:6px;height:100%;}
+.sort-table-wrap{flex:1;overflow-y:auto;}
+.sort-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:5px;margin-bottom:2px;transition:background .15s;font-size:10.5px;background:#161b27;border:1px solid #2d3748;}
+.sort-row.top{border-color:rgba(72,187,120,0.4);background:rgba(72,187,120,0.06);}
+.sort-row.bot{border-color:rgba(252,129,129,0.4);background:rgba(252,129,129,0.06);}
+.sort-rank{width:22px;font-size:9px;color:#718096;font-weight:700;flex-shrink:0;}
+.sort-name{flex:1;font-weight:600;}
+.sort-score{font-size:11px;font-weight:800;width:44px;text-align:right;flex-shrink:0;}
+.sort-bar-bg{width:80px;height:5px;background:#2d3748;border-radius:3px;overflow:hidden;flex-shrink:0;}
+.sort-bar-fill{height:100%;border-radius:3px;transition:width .8s ease;}
+.sort-legend{display:flex;gap:14px;font-size:9px;flex-shrink:0;padding:6px 8px;background:#161b27;border-radius:6px;}
+.sort-legend span{display:flex;align-items:center;gap:4px;}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── Step2: 키워드 매핑 ── */
+#viz-2{display:none;flex-direction:column;gap:10px;height:100%;}
+.school-selector{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;}
+.school-sel-btn{padding:3px 9px;background:#1e2535;border:1px solid #2d3748;border-radius:10px;font-size:9.5px;cursor:pointer;color:#a0aec0;transition:all .15s;}
+.school-sel-btn:hover,.school-sel-btn.active{background:#1a3461;border-color:#4299e1;color:#90cdf4;}
+.kw-school-name{font-size:12px;font-weight:800;color:#e2e8f0;flex-shrink:0;}
+.kw-subjects-grid{flex:1;overflow-y:auto;display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start;}
+.kw-tag{padding:3px 8px;border-radius:4px;font-size:9.5px;background:#1e2535;border:1px solid #2d3748;color:#a0aec0;transition:all .4s;}
+.kw-tag.hit-심화{background:rgba(237,100,166,0.15);border-color:rgba(237,100,166,0.5);color:#f687b3;font-weight:700;}
+.kw-tag.hit-고급{background:rgba(246,173,85,0.15);border-color:rgba(246,173,85,0.5);color:#f6ad55;font-weight:700;}
+.kw-tag.hit-AI{background:rgba(72,187,120,0.15);border-color:rgba(72,187,120,0.5);color:#68d391;font-weight:700;}
+.kw-tag.hit-실험{background:rgba(99,179,237,0.15);border-color:rgba(99,179,237,0.5);color:#63b3ed;font-weight:700;}
+.kw-tag.hit-Ⅱ{background:rgba(159,122,234,0.15);border-color:rgba(159,122,234,0.5);color:#b794f4;font-weight:700;}
+.kw-legend{display:flex;gap:10px;flex-wrap:wrap;flex-shrink:0;font-size:9px;padding:6px 10px;background:#161b27;border-radius:6px;}
+.kw-legend-item{display:flex;align-items:center;gap:4px;}
+
+/* ── Step3: 빈도 분석 ── */
+#viz-3{display:none;flex-direction:column;gap:12px;height:100%;}
+.freq-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;}
+.freq-group{background:#161b27;border:1px solid #2d3748;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+.freq-group-title{font-size:11px;font-weight:800;flex-shrink:0;}
+.freq-stat-big{font-size:32px;font-weight:900;flex-shrink:0;}
+.freq-school-list{flex:1;overflow-y:auto;}
+.freq-school-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:9.5px;}
+.freq-school-name{flex:1;color:#a0aec0;}
+.freq-bar-bg{width:60px;height:5px;background:#2d3748;border-radius:3px;overflow:hidden;flex-shrink:0;}
+.freq-bar-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+.freq-kw-count{width:18px;text-align:right;font-weight:700;font-size:10px;flex-shrink:0;}
+.freq-insight{background:#1a2844;border:1px solid rgba(66,153,225,0.3);border-radius:8px;padding:10px 14px;font-size:10px;line-height:1.7;color:#90cdf4;flex-shrink:0;}
+
+/* ── Step4: 결과 ── */
+#viz-4{display:none;flex-direction:column;gap:10px;height:100%;overflow-y:auto;}
+.result-comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex-shrink:0;}
+.result-card{background:#161b27;border-radius:10px;padding:14px;}
+.result-card.good{border:1px solid rgba(72,187,120,0.4);}
+.result-card.bad{border:1px solid rgba(252,129,129,0.4);}
+.result-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+.result-card.good .result-label{color:#68d391;}
+.result-card.bad .result-label{color:#fc8181;}
+.result-school-name{font-size:11px;font-weight:800;color:#e2e8f0;margin-bottom:8px;}
+.result-subjects{display:flex;flex-wrap:wrap;gap:3px;}
+.result-sub{padding:2px 6px;border-radius:3px;font-size:8.5px;}
+.result-sub.advanced{background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.4);color:#68d391;font-weight:700;}
+.result-sub.normal{background:#1e2535;border:1px solid #2d3748;color:#718096;}
+.result-conclusion{background:#0d1a2e;border-left:3px solid #4299e1;padding:12px 16px;border-radius:0 8px 8px 0;font-size:10.5px;line-height:1.8;color:#e2e8f0;flex-shrink:0;}
+.result-conclusion b{color:#90cdf4;}
+.result-stat-row{display:flex;gap:12px;flex-shrink:0;}
+.result-stat{flex:1;background:#161b27;border-radius:8px;padding:10px;text-align:center;}
+.result-stat-num{font-size:24px;font-weight:900;}
+.result-stat-label{font-size:9px;color:#718096;margin-top:2px;}
+</style>
+</head>
+<body>
+<h1>🔬 분석 도출 과정 시각화 <span>인천 고등학교 심화과목 격차 분석</span></h1>
+<div class="main">
+
+  <!-- 왼쪽: 4단계 카드 -->
+  <div class="steps">
+    <div style="font-size:9px;color:#718096;margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px;">분석 단계</div>
+
+    <div class="step-card active" id="card-1" onclick="showStep(1)">
+      <div class="step-num">Step 1</div>
+      <div class="step-title">① 데이터 정렬</div>
+      <div class="step-desc">SCHOOLS 데이터를 학업성취도(A등급 비율) 기준으로 내림차순 정렬하여 상·하위 그룹을 분리합니다.</div>
+      <div class="step-badge">Sorting</div>
+      <button class="run-btn" onclick="event.stopPropagation();runStep1()">▶ 정렬 실행</button>
+    </div>
+
+    <div class="step-card" id="card-2" onclick="showStep(2)">
+      <div class="step-num">Step 2</div>
+      <div class="step-title">② 키워드 매핑</div>
+      <div class="step-desc">각 학교의 curriculum 리스트에서 '심화', '고급', 'AI', '실험', 'Ⅱ' 키워드를 추출하여 표시합니다.</div>
+      <div class="step-badge">Keyword Mapping</div>
+      <button class="run-btn" onclick="event.stopPropagation();runStep2()">▶ 키워드 하이라이트</button>
+    </div>
+
+    <div class="step-card" id="card-3" onclick="showStep(3)">
+      <div class="step-num">Step 3</div>
+      <div class="step-title">③ 빈도 분석</div>
+      <div class="step-desc">상·하위 15개교의 심화 키워드 과목 보유 수를 비교하여 격차를 수치화합니다.</div>
+      <div class="step-badge">Frequency Analysis</div>
+      <button class="run-btn" onclick="event.stopPropagation();runStep3()">▶ 비교 차트 표시</button>
+    </div>
+
+    <div class="step-card" id="card-4" onclick="showStep(4)">
+      <div class="step-num">Step 4</div>
+      <div class="step-title">④ 결과 도출</div>
+      <div class="step-desc">성취도가 낮은 학교 학생들은 '심화 과목'을 학교 편제표에서 선택할 수 없는 구조적 불평등이 확인됩니다.</div>
+      <div class="step-badge">Conclusion</div>
+      <button class="run-btn" onclick="event.stopPropagation();showStep(4)">▶ 결과 보기</button>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 시각화 영역 -->
+  <div class="viz">
+    <div class="viz-title" id="viz-title">① 데이터 정렬 — 학업성취도 기준 내림차순</div>
+    <div class="viz-area">
+
+      <!-- Step 1: 정렬 -->
+      <div id="viz-1" style="display:flex;">
+        <div class="sort-legend">
+          <span><div class="dot" style="background:#68d391"></div> 상위 15개교 (A등급 비율 상위)</span>
+          <span><div class="dot" style="background:#fc8181"></div> 하위 15개교</span>
+          <span><div class="dot" style="background:#4a5568"></div> 중위권</span>
+        </div>
+        <div class="sort-table-wrap" id="sort-table"></div>
+      </div>
+
+      <!-- Step 2: 키워드 매핑 -->
+      <div id="viz-2">
+        <div class="school-selector" id="school-selector"></div>
+        <div class="kw-school-name" id="kw-school-name"></div>
+        <div class="kw-legend">
+          <div class="kw-legend-item"><span style="padding:1px 5px;background:rgba(237,100,166,0.15);border:1px solid rgba(237,100,166,0.5);border-radius:3px;font-size:8px;color:#f687b3;">심화</span>심화 과목</div>
+          <div class="kw-legend-item"><span style="padding:1px 5px;background:rgba(246,173,85,0.15);border:1px solid rgba(246,173,85,0.5);border-radius:3px;font-size:8px;color:#f6ad55;">고급</span>고급 과목</div>
+          <div class="kw-legend-item"><span style="padding:1px 5px;background:rgba(72,187,120,0.15);border:1px solid rgba(72,187,120,0.5);border-radius:3px;font-size:8px;color:#68d391;">AI</span>AI 과목</div>
+          <div class="kw-legend-item"><span style="padding:1px 5px;background:rgba(99,179,237,0.15);border:1px solid rgba(99,179,237,0.5);border-radius:3px;font-size:8px;color:#63b3ed;">실험</span>실험 과목</div>
+          <div class="kw-legend-item"><span style="padding:1px 5px;background:rgba(159,122,234,0.15);border:1px solid rgba(159,122,234,0.5);border-radius:3px;font-size:8px;color:#b794f4;">Ⅱ</span>심화 선택과목</div>
+        </div>
+        <div class="kw-subjects-grid" id="kw-subjects"></div>
+      </div>
+
+      <!-- Step 3: 빈도 분석 -->
+      <div id="viz-3">
+        <div class="freq-compare" id="freq-compare">
+          <div class="freq-group" id="freq-top">
+            <div class="freq-group-title" style="color:#68d391">🟢 상위 15개교</div>
+            <div class="freq-stat-big" id="stat-top" style="color:#68d391">-</div>
+            <div style="font-size:9px;color:#718096;margin-top:-8px;">학교당 평균 키워드 과목 수</div>
+            <div class="freq-school-list" id="freq-list-top"></div>
+          </div>
+          <div class="freq-group" id="freq-bot">
+            <div class="freq-group-title" style="color:#fc8181">🔴 하위 15개교</div>
+            <div class="freq-stat-big" id="stat-bot" style="color:#fc8181">-</div>
+            <div style="font-size:9px;color:#718096;margin-top:-8px;">학교당 평균 키워드 과목 수</div>
+            <div class="freq-school-list" id="freq-list-bot"></div>
+          </div>
+        </div>
+        <div class="freq-insight" id="freq-insight" style="display:none;"></div>
+      </div>
+
+      <!-- Step 4: 결과 -->
+      <div id="viz-4">
+        <div class="result-stat-row">
+          <div class="result-stat">
+            <div class="result-stat-num" style="color:#68d391">2.7</div>
+            <div class="result-stat-label">상위 15개교 평균<br>심화 키워드 과목 수</div>
+          </div>
+          <div class="result-stat">
+            <div class="result-stat-num" style="color:#fc8181">2.5</div>
+            <div class="result-stat-label">하위 15개교 평균<br>심화 키워드 과목 수</div>
+          </div>
+          <div class="result-stat">
+            <div class="result-stat-num" style="color:#f6ad55" id="ratio-num">-</div>
+            <div class="result-stat-label">상위/하위 비율<br>(격차 배수)</div>
+          </div>
+        </div>
+        <div class="result-comparison" id="result-comparison"></div>
+        <div class="result-conclusion">
+          <b>📌 핵심 발견:</b> 학업성취도가 낮은 학교의 학생들은 공부할 의지가 있어도
+          자신의 우수성을 증명할 <b>'심화 과목명'</b> 자체를 학교 편제표에서 선택할 수 없는 상황에 놓여 있다.<br><br>
+          성적이 낮은 학교 학생들은 심화 과목을 듣고 싶어도 인근 학교와의 <b>공동 교육과정에 의존하지 않는 한</b>,
+          자신의 학교 내에서는 기회를 잡기 어렵다. 이는 단순한 학력 격차가 아닌
+          <b style="color:#fc8181;">구조적 교육 기회 불평등</b>임을 보여준다.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SCHOOLS = [{"name": "세일고등학교", "avg": 0.987, "rank": 7, "subject_count": 83, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서와 작문", "문학", "물리학", "물질과 에너지", "미술", "미술 감상과 비평"]}, {"name": "인천여자고등학교", "avg": 0.97, "rank": 9, "subject_count": 104, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "공학 커뮤니케이션", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 환경생태", "대수", "데이터 시각화 프로그래밍", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학"]}, {"name": "동산고등학교", "avg": 0.961, "rank": 10, "subject_count": 86, "kw_count": 3, "kw_subjects": ["고급 대수", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 교육의 이해", "[공동(순증)] 인간과 심리", "[순증] 진로와 기업가 정신", "경제", "고급 대수", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "문학", "문학과 영상"]}, {"name": "명신여자고등학교", "avg": 0.957, "rank": 11, "subject_count": 115, "kw_count": 4, "kw_subjects": ["고급 체육 전공 실기", "과학탐구실험1", "과학탐구실험2", "물리학 실험"], "subjects_sample": ["경제", "경제 수학", "고급 체육 전공 실기", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기초 체육 전공 실기", "기하", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "드로잉", "매체 의사소통", "문학"]}, {"name": "숭덕여자고등학교", "avg": 0.953, "rank": 12, "subject_count": 100, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "고전으로 만나는 학문의 처음", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "문일여자고등학교", "avg": 0.948, "rank": 13, "subject_count": 93, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 과학과제 연구", "[공동(순증)] 국제 관계와 국제기구", "[공동(순증)] 데이터 과학", "[순증] 수학과제 탐구", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통"]}, {"name": "박문여자고등학교", "avg": 0.946, "rank": 14, "subject_count": 83, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "물리학", "물질과 에너지", "미술", "미술과 매체", "미적분Ⅰ"]}, {"name": "부개여자고등학교", "avg": 0.945, "rank": 15, "subject_count": 94, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "연수여자고등학교", "avg": 0.932, "rank": 17, "subject_count": 100, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "인항고등학교", "avg": 0.928, "rank": 18, "subject_count": 89, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "문학", "물리학"]}, {"name": "인천신현고등학교", "avg": 0.927, "rank": 19, "subject_count": 93, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "물리학", "물질과 에너지", "미디어 영어", "미술"]}, {"name": "인명여자고등학교", "avg": 0.925, "rank": 20, "subject_count": 108, "kw_count": 5, "kw_subjects": ["고급 물리학", "고급 생명과학", "고급 화학", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "고급 물리학", "고급 생명과학", "고급 화학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기술·가정", "기하", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문"]}, {"name": "인제고등학교", "avg": 0.921, "rank": 21, "subject_count": 96, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "물리학 실험"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "대수", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "문학", "문학 감상과 비평"]}, {"name": "인천고잔고등학교", "avg": 0.916, "rank": 22, "subject_count": 103, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학"]}, {"name": "인천초은고등학교", "avg": 0.914, "rank": 23, "subject_count": 104, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학"]}, {"name": "계산여자고등학교", "avg": 0.913, "rank": 24, "subject_count": 100, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 보건", "[공동(순증)] 인간과 심리", "[공동(순증)] 인구와 미래", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "데이터 과학", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "인하대학교사범대학부속고등학교", "avg": 0.91, "rank": 25, "subject_count": 93, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공업 일반", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "신명여자고등학교", "avg": 0.903, "rank": 26, "subject_count": 113, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문"]}, {"name": "부평여자고등학교", "avg": 0.902, "rank": 27, "subject_count": 95, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "관광 일본어", "관광 중국어", "금융과 경제생활", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "인천대건고등학교", "avg": 0.901, "rank": 28, "subject_count": 112, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 연극 제작 실습", "경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "독일어"]}, {"name": "강화여자고등학교", "avg": 0.9, "rank": 30, "subject_count": 96, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "기초 생태학", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "물리학", "물질과 에너지", "미술", "미술 창작", "미적분Ⅰ"]}, {"name": "인일여자고등학교", "avg": 0.9, "rank": 29, "subject_count": 111, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 스포츠 경기 분석", "[공동(순증)] 읽걷쓰 기반 지속가능발전 탐구", "[공동(순증)] 질문 기반 주제 탐구", "경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국어 과제연구", "기술·가정", "기초 체육 전공 실기", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구"]}, {"name": "송도고등학교", "avg": 0.897, "rank": 31, "subject_count": 110, "kw_count": 5, "kw_subjects": ["고급 물리학", "고급 생명과학", "고급 화학", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "고급 물리학", "고급 생명과학", "고급 화학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기초 체육 전공 실기", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문"]}, {"name": "제일고등학교", "avg": 0.888, "rank": 33, "subject_count": 107, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행"]}, {"name": "인천해송고등학교", "avg": 0.885, "rank": 35, "subject_count": 98, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기하", "기후변화와 환경생태", "대수", "데이터 과학", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "학익여자고등학교", "avg": 0.885, "rank": 34, "subject_count": 104, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학"]}, {"name": "인천남동고등학교", "avg": 0.884, "rank": 36, "subject_count": 95, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "물리학 실험"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학"]}, {"name": "신송고등학교", "avg": 0.879, "rank": 37, "subject_count": 95, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "인천영선고등학교", "avg": 0.878, "rank": 38, "subject_count": 104, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "물리학 실험"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통"]}, {"name": "부평고등학교", "avg": 0.874, "rank": 39, "subject_count": 94, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기업과 경영", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "부광여자고등학교", "avg": 0.871, "rank": 41, "subject_count": 101, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지", "미디어 영어"]}, {"name": "인화여자고등학교", "avg": 0.871, "rank": 40, "subject_count": 99, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 환경생태", "대수", "독서 토론과 글쓰기", "독서와 작문", "동아시아 시민", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통"]}, {"name": "인천고등학교", "avg": 0.866, "rank": 42, "subject_count": 92, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행"]}, {"name": "강화고등학교", "avg": 0.865, "rank": 43, "subject_count": 90, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학"]}, {"name": "인천원당고등학교", "avg": 0.857, "rank": 44, "subject_count": 113, "kw_count": 6, "kw_subjects": ["고급 물리학", "고급 생명과학", "고급 지구과학", "고급 화학", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "고급 물리학", "고급 생명과학", "고급 지구과학", "고급 화학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수"]}, {"name": "계양고등학교", "avg": 0.854, "rank": 46, "subject_count": 94, "kw_count": 7, "kw_subjects": ["고급 물리학", "고급 생명과학", "고급 지구과학", "고급 화학", "과학탐구실험1", "과학탐구실험2", "물리학 실험"], "subjects_sample": ["경제", "고급 물리학", "고급 생명과학", "고급 지구과학", "고급 화학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "인천논현고등학교", "avg": 0.854, "rank": 45, "subject_count": 94, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "작전여자고등학교", "avg": 0.851, "rank": 47, "subject_count": 95, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "가림고등학교", "avg": 0.847, "rank": 48, "subject_count": 101, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "물리학 실험"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "삼산고등학교", "avg": 0.829, "rank": 49, "subject_count": 110, "kw_count": 4, "kw_subjects": ["[공동(순증)] 고급 물리학", "[공동(순증)] 생명과학 실험", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 고급 물리학", "[공동(순증)] 국제 관계와 국제기구", "[공동(순증)] 빅 데이터 분석", "[공동(순증)] 생명과학 실험", "[공동(순증)] 스페인어", "[순증] 바이오 프로젝트", "[순증] 블록체인 기초", "[순증] 자율 탐구 프로젝트", "[순증] 컴퓨터활용 생활 속 물리 탐구", "경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태"]}, {"name": "인천청라고등학교", "avg": 0.828, "rank": 51, "subject_count": 107, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계"]}, {"name": "인천해원고등학교", "avg": 0.828, "rank": 50, "subject_count": 94, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "옥련여자고등학교", "avg": 0.825, "rank": 53, "subject_count": 102, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "인천연송고등학교", "avg": 0.825, "rank": 52, "subject_count": 95, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "인천상정고등학교", "avg": 0.822, "rank": 54, "subject_count": 94, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "계산고등학교", "avg": 0.82, "rank": 55, "subject_count": 101, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "부개고등학교", "avg": 0.81, "rank": 58, "subject_count": 99, "kw_count": 6, "kw_subjects": ["[공동(순증)] 고급 물리학", "[공동(순증)] 생명과학 실험", "[순증] 지구과학 실험", "[순증] 화학 실험", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 간호의 기초", "[공동(순증)] 고급 물리학", "[공동(순증)] 생명과학 실험", "[순증] 교육의 이해", "[순증] 인간과 심리", "[순증] 지구과학 실험", "[순증] 화학 실험", "경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 환경생태", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문"]}, {"name": "인천만수고등학교", "avg": 0.81, "rank": 57, "subject_count": 93, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "공학 커뮤니케이션", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 시민", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "인천영흥고등학교", "avg": 0.808, "rank": 59, "subject_count": 70, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학탐구실험1", "과학탐구실험2", "기술·가정", "기하", "대수", "도시의 미래 탐구", "독서와 작문", "로봇과 공학세계", "매체 의사소통", "문학", "물리학", "물질과 에너지", "미술", "미술 창작", "미적분Ⅰ", "미적분Ⅱ", "법과 사회", "사회문제 탐구"]}, {"name": "석정여자고등학교", "avg": 0.803, "rank": 60, "subject_count": 95, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기하", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지", "미디어 영어"]}, {"name": "대인고등학교", "avg": 0.799, "rank": 61, "subject_count": 94, "kw_count": 1, "kw_subjects": ["고급 체육 전공 실기"], "subjects_sample": ["고급 체육 전공 실기", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "인천산곡고등학교", "avg": 0.794, "rank": 62, "subject_count": 106, "kw_count": 7, "kw_subjects": ["고급 물리학", "고급 생명과학", "고급 지구과학", "고급 체육 전공 실기", "고급 화학", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제 수학", "고급 물리학", "고급 생명과학", "고급 지구과학", "고급 체육 전공 실기", "고급 화학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기초 체육 전공 실기", "기하", "기후변화와 환경생태", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문"]}, {"name": "백석고등학교", "avg": 0.793, "rank": 63, "subject_count": 104, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통"]}, {"name": "교동고등학교", "avg": 0.787, "rank": 64, "subject_count": 82, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기초 체육 전공 실기", "기후변화와 지속가능한 세계", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지", "미술"]}, {"name": "부광고등학교", "avg": 0.775, "rank": 65, "subject_count": 105, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기초 체육 전공 실기", "기하", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통"]}, {"name": "서인천고등학교", "avg": 0.772, "rank": 66, "subject_count": 107, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기초 체육 전공 실기", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행"]}, {"name": "서운고등학교", "avg": 0.769, "rank": 67, "subject_count": 106, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통"]}, {"name": "인천세원고등학교", "avg": 0.76, "rank": 68, "subject_count": 96, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "기하", "기후변화와 환경생태", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지", "미디어 영어"]}, {"name": "인천남고등학교", "avg": 0.758, "rank": 69, "subject_count": 99, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[공동(순증)] 바이오 프로젝트", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학 감상과 비평"]}, {"name": "선인고등학교", "avg": 0.755, "rank": 70, "subject_count": 110, "kw_count": 6, "kw_subjects": ["고급 물리학", "고급 생명과학", "고급 지구과학", "고급 화학", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "고급 물리학", "고급 생명과학", "고급 지구과학", "고급 화학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논술", "대수", "데이터 과학"]}, {"name": "안남고등학교", "avg": 0.745, "rank": 71, "subject_count": 92, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "인천예일고등학교", "avg": 0.729, "rank": 72, "subject_count": 113, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "디자인 전공 실기Ⅱ"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "드로잉", "디자인 전공 실기Ⅰ", "디자인 전공 실기Ⅱ", "디자인 전공 실기Ⅲ", "디자인 전공 실기Ⅳ", "매체 의사소통", "문학"]}, {"name": "인천부흥고등학교", "avg": 0.72, "rank": 73, "subject_count": 96, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지"]}, {"name": "작전고등학교", "avg": 0.714, "rank": 74, "subject_count": 91, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상", "물리학", "물질과 에너지", "미술"]}, {"name": "인성여자고등학교", "avg": 0.698, "rank": 76, "subject_count": 122, "kw_count": 3, "kw_subjects": ["과제 탐구 및 발표 심화", "과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["[순증] 교육의 이해", "[순증] 인구와 미래", "경제", "경제 수학", "고전으로 만나는 학문의 처음", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과제 탐구 및 발표 기초", "과제 탐구 및 발표 심화", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국어 과제연구", "국제 관계와 국제기구", "금융과 경제생활", "기술·가정", "기초 체육 전공 실기", "기하", "기후변화와 지속가능한 세계", "대수"]}, {"name": "덕적고등학교", "avg": 0.696, "rank": 77, "subject_count": 84, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기술·가정", "기하", "기후변화와 환경생태", "대수", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지", "미디어 영어", "미술"]}, {"name": "가정고등학교", "avg": 0.676, "rank": 78, "subject_count": 104, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "드로잉", "매체 의사소통", "문학", "문학과 영상"]}, {"name": "인천효성고등학교", "avg": 0.675, "rank": 80, "subject_count": 109, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학과제 연구", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "국제 관계의 이해", "금융과 경제생활", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문"]}, {"name": "인천송천고등학교", "avg": 0.637, "rank": 83, "subject_count": 91, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기하", "기후변화와 환경생태", "논리와 사고", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지", "미디어 영어", "미술"]}, {"name": "제물포고등학교", "avg": 0.627, "rank": 84, "subject_count": 105, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "기술·가정", "기초 체육 전공 실기", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "데이터 과학", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통", "문학", "문학과 영상", "물리학"]}, {"name": "대청고등학교", "avg": 0.575, "rank": 85, "subject_count": 66, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기후변화와 환경생태", "대수", "독서와 작문", "문학", "물리학", "미술", "미술 창작", "미적분Ⅰ", "법과 사회", "보건", "사회문제 탐구", "사회와 문화", "생명과학", "세계사", "세포와 물질대사"]}, {"name": "백령고등학교", "avg": 0.574, "rank": 86, "subject_count": 74, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학탐구실험1", "과학탐구실험2", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "물리학", "물질과 에너지", "미디어 영어", "미술", "미술 창작", "미적분Ⅰ", "미적분Ⅱ"]}, {"name": "덕신고등학교", "avg": 0.517, "rank": 88, "subject_count": 78, "kw_count": 3, "kw_subjects": ["과학탐구실험1", "과학탐구실험2", "미적분Ⅱ"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "국제 관계의 이해", "기하", "기후변화와 환경생태", "대수", "도시의 미래 탐구", "독서 토론과 글쓰기", "독서와 작문", "동아시아 역사 기행", "문학", "문학과 영상", "물리학", "물질과 에너지", "미디어 영어", "미술"]}, {"name": "학익고등학교", "avg": 0.511, "rank": 89, "subject_count": 96, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학 시민", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "금융과 경제생활", "기술·가정", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "논술", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "로봇과 공학세계", "매체 의사소통"]}, {"name": "인천영종고등학교", "avg": 0.408, "rank": 90, "subject_count": 92, "kw_count": 2, "kw_subjects": ["과학탐구실험1", "과학탐구실험2"], "subjects_sample": ["경제", "경제 수학", "공통국어1", "공통국어2", "공통수학1", "공통수학2", "공통영어1", "공통영어2", "과학의 역사와 문화", "과학탐구실험1", "과학탐구실험2", "교육의 이해", "금융과 경제생활", "기술·가정", "기초 체육 전공 실기", "기하", "기후변화와 지속가능한 세계", "기후변화와 환경생태", "논리와 사고", "대수", "데이터 과학", "도시의 미래 탐구", "독서와 작문", "동아시아 역사 기행", "문학"]}];
+const TOP_NAMES = new Set(["인항고등학교", "동산고등학교", "인천신현고등학교", "인제고등학교", "연수여자고등학교", "인천초은고등학교", "숭덕여자고등학교", "인천고잔고등학교", "박문여자고등학교", "세일고등학교", "인천여자고등학교", "명신여자고등학교", "문일여자고등학교", "부개여자고등학교", "인명여자고등학교"]);
+const BOT_NAMES = new Set(["안남고등학교", "인천송천고등학교", "덕신고등학교", "인천부흥고등학교", "인천영종고등학교", "덕적고등학교", "학익고등학교", "백령고등학교", "작전고등학교", "인천효성고등학교", "제물포고등학교", "인천예일고등학교", "인성여자고등학교", "대청고등학교", "가정고등학교"]);
+const TOP_AVG = 2.7;
+const BOT_AVG = 2.5;
+const KEYWORDS = ['심화','고급','AI','실험','Ⅱ'];
+
+function getKwClass(subject) {
+  for (const kw of ['심화','고급','AI','실험','Ⅱ']) {
+    if (subject.includes(kw)) return 'hit-' + kw;
+  }
+  return '';
+}
+
+// ── 현재 스텝 표시 ──
+function showStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('viz-'+i).style.display = 'none';
+    document.getElementById('card-'+i).classList.remove('active');
+  });
+  document.getElementById('viz-'+n).style.display = 'flex';
+  document.getElementById('card-'+n).classList.add('active');
+  const titles = {
+    1:'① 데이터 정렬 — 학업성취도 기준 내림차순',
+    2:'② 키워드 매핑 — 심화/고급/AI/실험/Ⅱ 과목 추출',
+    3:'③ 빈도 분석 — 상·하위 15개교 심화 과목 수 비교',
+    4:'④ 결과 도출 — 구조적 교육 기회 불평등'
+  };
+  document.getElementById('viz-title').textContent = titles[n];
+  if (n===1) renderStep1(false);
+  if (n===2) initStep2();
+  if (n===3) renderStep3();
+  if (n===4) renderStep4();
+}
+
+// ── Step 1: 정렬 ──
+let step1Sorted = false;
+function renderStep1(animate) {
+  const wrap = document.getElementById('sort-table');
+  const list = [...SCHOOLS];
+  if (!animate) list.sort(() => Math.random() - 0.5);
+  else list.sort((a,b) => b.avg - a.avg);
+  
+  wrap.innerHTML = list.map((s,i) => {
+    const cls = TOP_NAMES.has(s.name) ? 'top' : BOT_NAMES.has(s.name) ? 'bot' : '';
+    const color = cls==='top' ? '#68d391' : cls==='bot' ? '#fc8181' : '#718096';
+    const pct = Math.round(s.avg * 100);
+    return `<div class="sort-row ${cls}" id="sr-${s.name.replace(/\s/g,'_')}">
+      <div class="sort-rank">${animate ? i+1 : '—'}</div>
+      <div class="sort-name">${s.name}</div>
+      <div class="sort-bar-bg"><div class="sort-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="sort-score" style="color:${color}">${(s.avg*100).toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+}
+function runStep1() {
+  renderStep1(true);
+  step1Sorted = true;
+}
+
+// ── Step 2: 키워드 매핑 ──
+let kw_school_idx = 0;
+function initStep2() {
+  const sel = document.getElementById('school-selector');
+  // 상위 5 + 하위 5개 버튼
+  const sample = [...SCHOOLS.slice(0,5), ...SCHOOLS.slice(-5)];
+  sel.innerHTML = sample.map((s,i) => {
+    const cls = TOP_NAMES.has(s.name) ? 'style="color:#68d391"' : 'style="color:#fc8181"';
+    return `<button class="school-sel-btn ${i===0?'active':''}" ${cls} onclick="selectSchool(${SCHOOLS.indexOf(s)})">${s.name}</button>`;
+  }).join('');
+  selectSchool(0);
+}
+function selectSchool(idx) {
+  document.querySelectorAll('.school-sel-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.school-sel-btn');
+  const sample = [...SCHOOLS.slice(0,5), ...SCHOOLS.slice(-5)];
+  const sampleIdx = sample.findIndex(s => SCHOOLS[idx] && s.name === SCHOOLS[idx].name);
+  if (sampleIdx >= 0) btns[sampleIdx].classList.add('active');
+  
+  const s = SCHOOLS[idx];
+  document.getElementById('kw-school-name').textContent = s.name + '  ·  총 ' + s.subject_count + '개 과목';
+  
+  const grid = document.getElementById('kw-subjects');
+  grid.innerHTML = s.subjects_sample.map(sub => {
+    return `<div class="kw-tag" data-sub="${sub}">${sub}</div>`;
+  }).join('');
+}
+function runStep2() {
+  const tags = document.querySelectorAll('.kw-tag');
+  tags.forEach((tag, i) => {
+    setTimeout(() => {
+      const sub = tag.dataset.sub;
+      const cls = getKwClass(sub);
+      if (cls) tag.classList.add(cls);
+    }, i * 60);
+  });
+}
+
+// ── Step 3: 빈도 분석 ──
+function renderStep3() {
+  const top15 = SCHOOLS.filter(s => TOP_NAMES.has(s.name));
+  const bot15 = SCHOOLS.filter(s => BOT_NAMES.has(s.name));
+  const maxKw = Math.max(...SCHOOLS.map(s => s.kw_count), 1);
+  
+  ['top','bot'].forEach(g => {
+    const list = g==='top' ? top15 : bot15;
+    const color = g==='top' ? '#68d391' : '#fc8181';
+    const el = document.getElementById('freq-list-'+g);
+    el.innerHTML = list.sort((a,b)=>b.kw_count-a.kw_count).map(s => `
+      <div class="freq-school-row">
+        <div class="freq-school-name">${s.name}</div>
+        <div class="freq-bar-bg"><div class="freq-bar-fill" style="width:0%;background:${color}" data-pct="${Math.round(s.kw_count/maxKw*100)}"></div></div>
+        <div class="freq-kw-count" style="color:${color}">${s.kw_count}</div>
+      </div>`).join('');
+  });
+  
+  setTimeout(()=>{
+    document.getElementById('stat-top').textContent = TOP_AVG;
+    document.getElementById('stat-bot').textContent = BOT_AVG;
+    document.querySelectorAll('.freq-bar-fill').forEach(b => {
+      b.style.width = b.dataset.pct + '%';
+    });
+    const insight = document.getElementById('freq-insight');
+    insight.style.display = 'block';
+    insight.innerHTML = `📊 상위 15개교는 학교당 평균 <b style="color:#68d391">${TOP_AVG}개</b>의 심화 키워드 과목을 개설하는 반면,
+    하위 15개교는 평균 <b style="color:#fc8181">${BOT_AVG}개</b>에 그칩니다.
+    상위권이 하위권 대비 <b style="color:#f6ad55">${BOT_AVG>0 ? (TOP_AVG/BOT_AVG).toFixed(1) : '—'}배</b> 더 많은 심화 과목을 보유하고 있습니다.`;
+  }, 300);
+}
+
+// ── Step 4: 결과 ──
+function renderStep4() {
+  const ratio = BOT_AVG > 0 ? (TOP_AVG/BOT_AVG).toFixed(1) : (TOP_AVG > 0 ? '∞' : '1.0');
+  document.getElementById('ratio-num').textContent = ratio + '×';
+  
+  const top1 = SCHOOLS.find(s => TOP_NAMES.has(s.name) && s.kw_count === Math.max(...SCHOOLS.filter(x=>TOP_NAMES.has(x.name)).map(x=>x.kw_count)));
+  const bot1 = SCHOOLS.find(s => BOT_NAMES.has(s.name) && s.kw_count === Math.min(...SCHOOLS.filter(x=>BOT_NAMES.has(x.name)).map(x=>x.kw_count)));
+  
+  const comp = document.getElementById('result-comparison');
+  comp.innerHTML = [
+    [top1,'good','🟢 상위 학교 (심화과목 多)'],
+    [bot1,'bad','🔴 하위 학교 (심화과목 少)']
+  ].map(([s, cls, label]) => s ? `
+    <div class="result-card ${cls}">
+      <div class="result-label">${label}</div>
+      <div class="result-school-name">${s.name} · A등급 ${(s.avg*100).toFixed(1)}%</div>
+      <div class="result-subjects">
+        ${s.subjects_sample.map(sub => {
+          const kwCls = getKwClass(sub);
+          return `<div class="result-sub ${kwCls ? 'advanced' : 'normal'}">${sub}</div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:8px;font-size:9.5px;color:${cls==='good'?'#68d391':'#fc8181'};font-weight:700;">
+        심화 키워드 과목: ${s.kw_count}개 / ${s.subject_count}개 중
+      </div>
+    </div>` : '').join('');
+}
+
+// 초기 렌더
+renderStep1(false);
+</script>
+</body>
+</html>
